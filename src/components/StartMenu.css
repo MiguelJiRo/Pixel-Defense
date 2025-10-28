@@ -1,0 +1,103 @@
+.start-menu {
+  background: #1a1a1a;
+  border: 4px solid #333;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  image-rendering: pixelated;
+}
+
+.title {
+  font-size: 48px;
+  color: #00ff00;
+  text-shadow: 3px 3px #000;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #888;
+  margin-bottom: 40px;
+}
+
+.config-section {
+  margin-bottom: 30px;
+}
+
+.config-section h2 {
+  font-size: 20px;
+  color: #fff;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.menu-button {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  padding: 10px 20px;
+  background: #2a2a2a;
+  color: #aaa;
+  border: 2px solid #444;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.menu-button:hover {
+  background: #333;
+  border-color: #666;
+  color: #fff;
+}
+
+.menu-button.active {
+  background: #00ff00;
+  color: #000;
+  border-color: #00ff00;
+}
+
+.custom-input {
+  margin-top: 15px;
+}
+
+.custom-input input {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  padding: 10px;
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #444;
+  width: 200px;
+  text-align: center;
+}
+
+.custom-input input:focus {
+  outline: none;
+  border-color: #00ff00;
+}
+
+.start-button {
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  padding: 15px 40px;
+  background: #00ff00;
+  color: #000;
+  border: 3px solid #00ff00;
+  cursor: pointer;
+  margin-top: 20px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.start-button:hover {
+  background: #00cc00;
+  border-color: #00cc00;
+  transform: scale(1.05);
+}
