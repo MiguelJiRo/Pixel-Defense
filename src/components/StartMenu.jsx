@@ -79,6 +79,10 @@ function StartMenu({ onStart }) {
       <button className="start-button" onClick={handleStart}>
         START GAME
       </button>
+
+      <div className="credits">
+        Made by <a href="https://github.com/MiguelJiRo" target="_blank" rel="noopener noreferrer">MiguelJiRo</a>
+      </div>
     </div>
   )
 }
