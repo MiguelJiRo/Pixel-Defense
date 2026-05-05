@@ -78,20 +78,22 @@
       body,
       #root {
         height: 100%;
+        width: 100%;
       }
 
       body {
         font-family: var(--font-body);
         background: radial-gradient(ellipse at top, #11111c 0%, #07070b 60%, #000 100%);
         color: var(--text);
+        overflow: hidden;
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
         font-size: 18px;
-        min-height: 100vh;
       }
 
       #root {
-        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
 
       :focus-visible {
