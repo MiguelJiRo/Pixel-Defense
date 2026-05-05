@@ -1,161 +1,118 @@
 # Pixel Defense
 
-Un tower defense minimalista con estilo pixel/retro desarrollado con React y Canvas.
+A minimalist, retro pixel-art tower defense built with **React 19** + **HTML5 Canvas** + **Vite**.
+Place towers, survive randomized waves, master random events, and chase the high-score.
 
-## Características
+> Free, browser-based, mobile-friendly, no tracking.
 
-- **Estilo Visual Pixel/Retro**: Gráficos minimalistas con efectos de partículas y scanlines retro
-- **Modo Endless**: Nivel único con paths aleatorios que cambian en cada oleada
-- **Sistema de Dificultad**: 4 niveles de dificultad (Easy, Normal, Hard, Extreme)
-- **Duración Personalizable**: Elige 20, 30, 40 rondas o configura una cantidad personalizada
-- **Eventos Aleatorios**: Eventos especiales durante las oleadas que añaden variedad
-  - Double Wave: El doble de enemigos
-  - Speed Boost: Enemigos más rápidos
-  - Armored: Enemigos con más vida
-  - Boss Rush: Múltiples jefes
-  - Swarm: Muchos enemigos débiles
-  - Money Bonus: Doble recompensa
-  - Air Raid: Enemigos voladores rápidos
+---
 
-## Torres Disponibles
+## Features
 
-### Basic Tower ($100)
-- Daño: 10
-- Alcance: 3
-- Velocidad: Media
-- Torre balanceada para defensa general
+- **Retro pixel-art aesthetic** with scanlines, particle effects and a custom pixel font (`Press Start 2P`).
+- **Endless mode** with 5 random paths chosen each run.
+- **4 difficulty levels**: Easy, Normal, Hard, Extreme.
+- **Customizable run length**: 10 / 20 / 30 / 40 rounds, or any custom value (1–999).
+- **Random wave events**: Double Wave, Speed Boost, Armored, Boss Rush, Swarm, Money Bonus, Air Raid.
+- **Pause / Resume**, **skip prep timer**, and **keyboard shortcuts** (1–4 / Space / P / Esc).
+- **High-score persistence** per difficulty/round combo via `localStorage`.
+- **Responsive layout**: works on desktop and tablet; sidebar collapses below the canvas on small screens.
+- **Accessible**: keyboard-controllable menus, ARIA roles, focus rings, `prefers-reduced-motion` support.
+- **SEO-ready**: full meta tags, Open Graph, Twitter cards, JSON-LD `VideoGame` schema.
 
-### Sniper Tower ($200)
-- Daño: 50
-- Alcance: 6
-- Velocidad: Lenta
-- Alto daño a larga distancia
+---
 
-### Rapid Tower ($150)
-- Daño: 5
-- Alcance: 2.5
-- Velocidad: Muy rápida
-- Muchos disparos por segundo
+## Towers
 
-### Splash Tower ($250)
-- Daño: 20
-- Alcance: 3
-- Velocidad: Media
-- Daño en área de efecto
+| Tower   | Cost | Damage | Range | Speed       | Notes                          |
+| ------- | ---- | ------ | ----- | ----------- | ------------------------------ |
+| Basic   | $100 | 10     | 3     | Medium      | Balanced general defense       |
+| Sniper  | $200 | 50     | 6     | Slow        | High damage, long range        |
+| Rapid   | $150 | 5      | 2.5   | Very fast   | Many shots per second          |
+| Splash  | $250 | 20     | 3     | Medium      | Area-of-effect damage          |
 
-## Tipos de Enemigos
+Each tower can be upgraded up to **level 3** during preparation phases. Selling a tower refunds **70%** of its build cost.
 
-- **Basic**: Enemigo estándar con vida y velocidad balanceadas
-- **Fast**: Enemigo rápido pero débil
-- **Tank**: Enemigo lento pero con mucha vida
-- **Boss**: Jefe con muchísima vida (aparece cada 5 rondas)
+## Enemies
 
-## Mecánicas del Juego
+- **Basic** — balanced HP and speed.
+- **Fast** — low HP, very high speed.
+- **Tank** — slow but heavily armored.
+- **Boss** — appears every 5 rounds and during Boss Rush events.
 
-### Fase de Preparación
-- Entre oleadas tienes 15 segundos para:
-  - Construir nuevas torres
-  - Mejorar torres existentes (hasta nivel 3)
-  - Vender torres (recuperas el 70% del costo)
+---
 
-### Fase de Oleada
-- Los enemigos siguen un path aleatorio
-- Destruye enemigos para ganar dinero
-- Si un enemigo llega al final, pierdes 1 vida
-- El juego termina cuando tu vida llega a 0
+## Controls
 
-### Sistema de Mejoras
-- Las torres pueden mejorarse hasta nivel 3
-- Cada mejora aumenta el daño y puede aumentar el alcance
-- El costo de mejora varía según el tipo de torre
+| Action                | Mouse / Touch       | Keyboard         |
+| --------------------- | ------------------- | ---------------- |
+| Select tower type     | Click in shop       | `1` – `4`        |
+| Place tower           | Click on grid       | —                |
+| Place multiple        | Hold `Shift` + click | —               |
+| Inspect / select tower| Click on tower      | —                |
+| Skip prep timer       | "Skip" button       | `Space` (in prep)|
+| Pause / Resume        | Pause icon          | `P` or `Space`   |
+| Deselect              | —                   | `Esc`            |
 
-## Instalación y Ejecución
+---
 
-### Requisitos Previos
-- Node.js (versión 16 o superior)
-- npm o yarn
+## Run locally
 
-### Instalación
+Requires Node.js 18+.
 
 ```bash
-# Clonar o descargar el proyecto
-cd pixel-defense
-
-# Instalar dependencias
+git clone https://github.com/MiguelJiRo/Pixel-Defense.git
+cd Pixel-Defense
 npm install
-
-# Iniciar servidor de desarrollo
-npm run dev
-
-# El juego estará disponible en http://localhost:5173
+npm run dev          # http://localhost:5173
 ```
 
-### Compilar para Producción
+### Production build
 
 ```bash
-# Crear build de producción
-npm run build
-
-# Previsualizar build
-npm run preview
+npm run build        # outputs to ./dist
+npm run preview      # serves the production build locally
 ```
 
-## Controles
+---
 
-- **Click Izquierdo**: Colocar torre o seleccionar torre existente
-- **Hover**: Ver preview de torre y alcance antes de colocar
-
-## Tecnologías Utilizadas
-
-- **React**: Framework de UI
-- **Canvas 2D**: Rendering del juego
-- **Vite**: Build tool y dev server
-- **JavaScript ES6+**: Lógica del juego
-
-## Estructura del Proyecto
+## Project structure
 
 ```
 pixel-defense/
+├── index.html                 # SEO meta, fonts, design tokens
 ├── src/
+│   ├── App.jsx                # Routing between menu / game / end-screen
+│   ├── App.css
+│   ├── main.jsx
 │   ├── components/
-│   │   ├── Game.jsx           # Componente principal del juego
-│   │   ├── Game.css           # Estilos del juego
-│   │   ├── StartMenu.jsx      # Menú de inicio
-│   │   └── StartMenu.css      # Estilos del menú
+│   │   ├── StartMenu.jsx      # Difficulty / round / high-score panel
+│   │   ├── StartMenu.css
+│   │   ├── Game.jsx           # Canvas + sidebar + keyboard shortcuts
+│   │   └── Game.css
 │   ├── game/
-│   │   ├── GameManager.js     # Lógica principal del juego
-│   │   ├── constants.js       # Constantes y configuración
-│   │   ├── events.js          # Sistema de eventos aleatorios
-│   │   └── ParticleSystem.js  # Sistema de partículas
-│   ├── App.jsx                # Componente raíz
-│   ├── App.css                # Estilos globales
-│   └── main.jsx               # Punto de entrada
-├── index.html                  # HTML principal
-├── vite.config.js             # Configuración de Vite
-└── package.json               # Dependencias y scripts
+│   │   ├── GameManager.js     # Game loop, towers, enemies, waves
+│   │   ├── ParticleSystem.js  # Visual effects
+│   │   ├── events.js          # Random wave events
+│   │   └── constants.js       # Tower/enemy/path tuning
+│   └── utils/
+│       └── storage.js         # High-score persistence
+├── package.json
+└── vite.config.js
 ```
 
-## Características Técnicas
+---
 
-- **Sistema de Pathfinding**: 5 paths predefinidos que se seleccionan aleatoriamente
-- **Sistema de Oleadas**: Dificultad escalable basada en la ronda actual
-- **Sistema de Partículas**: Efectos visuales para explosiones, impactos y recompensas
-- **Rendering Optimizado**: Canvas con image-rendering pixelated para estética retro
-- **Game Loop**: Actualización a 60 FPS con delta time para movimiento suave
+## Tips
 
-## Consejos y Estrategias
+1. **Cover bends in the path** — corners give towers more attack window.
+2. **Mix tower types** — Sniper for tanks, Rapid for swarms, Splash for groups.
+3. **Save during prep** — money does not roll over from sells, so don't over-build.
+4. **Upgrade > rebuild** — a level-3 tower usually beats two level-1 ones.
+5. **Watch the event banner** — adapt your placements before the wave starts.
 
-1. **Economía Temprana**: Construye Basic Towers al inicio para ahorrar dinero
-2. **Posicionamiento**: Coloca torres en lugares donde puedan cubrir múltiples secciones del path
-3. **Balance**: Combina diferentes tipos de torres para manejar distintos enemigos
-4. **Mejoras**: Mejorar una torre existente a veces es mejor que construir una nueva
-5. **Eventos**: Adapta tu estrategia según el evento activo de cada oleada
+---
 
-## Créditos
+## License
 
-Desarrollado con React + Canvas
-Diseño minimalista pixel/retro
-
-## Licencia
-
-MIT
+MIT © Miguel Jiménez Rodríguez ([MiguelJiRo](https://github.com/MiguelJiRo)).

@@ -1,138 +1,209 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { GameManager } from '../game/GameManager'
+import { sound } from '../game/SoundManager'
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, GRID_SIZE, GRID_WIDTH, GRID_HEIGHT,
-  TOWER_TYPES
+  TOWER_TYPES, INITIAL_HEALTH, INITIAL_MONEY
 } from '../game/constants'
 import './Game.css'
 
-function Game({ config, onGameOver, onReturnToMenu }) {
+const TOWER_HOTKEYS = ['1', '2', '3', '4']
+const TOWER_TYPE_LIST = Object.values(TOWER_TYPES)
+const UI_TICK_MS = 100
+
+function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
   const canvasRef = useRef(null)
+  const wrapRef = useRef(null)
   const gameRef = useRef(null)
   const animationRef = useRef(null)
+  const selectedTowerTypeRef = useRef(null)
+  const hoveredCellRef = useRef(null)
+  const selectedTowerRef = useRef(null)
 
-  const [gameState, setGameState] = useState({
-    health: 20,
-    money: 400,
+  const [uiState, setUiState] = useState({
+    health: INITIAL_HEALTH,
+    money: INITIAL_MONEY,
     round: 0,
     totalRounds: config.rounds,
     score: 0,
     waveActive: false,
-    waveTimer: 0,  // Start at 0 for initial prep time
+    waveTimer: 0,
     wavePrepTime: 15000,
-    enemies: [],
-    towers: [],
-    projectiles: [],
-    currentPath: [],
+    enemyCount: 0,
     currentEvent: null,
-    victory: false
+    paused: false,
+    victory: false,
+    gameOver: false,
+    stats: { kills: 0, towersBuilt: 0, moneySpent: 0, moneyEarned: 0, leaks: 0 }
   })
   const [selectedTowerType, setSelectedTowerType] = useState(null)
-  const [hoveredCell, setHoveredCell] = useState(null)
   const [selectedTower, setSelectedTower] = useState(null)
+  const [audio, setAudio] = useState(sound.getState())
+  const finishedRef = useRef(false)
+
+  useEffect(() => { selectedTowerTypeRef.current = selectedTowerType }, [selectedTowerType])
+  useEffect(() => { selectedTowerRef.current = selectedTower }, [selectedTower])
+  useEffect(() => sound.subscribe(setAudio), [])
+
+  useEffect(() => {
+    sound.startMusic()
+    return () => sound.stopMusic()
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) {
-      console.error('Canvas not available')
-      return
-    }
+    if (!canvas) return
 
     const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      console.error('Could not get canvas context')
-      return
-    }
-
-    // Enable pixel art rendering
+    if (!ctx) return
     ctx.imageSmoothingEnabled = false
 
-    // Initialize game
-    const game = new GameManager(config, onGameOver)
+    const game = new GameManager(config, () => {
+      if (finishedRef.current) return
+      finishedRef.current = true
+      onGameOver?.(game.getState())
+    })
     gameRef.current = game
 
-    // Game loop
-    let lastTime = Date.now()
+    let lastTime = performance.now()
+    let lastUiPush = 0
 
-    const gameLoop = () => {
-      const currentTime = Date.now()
-      const deltaTime = currentTime - lastTime
-      lastTime = currentTime
+    const gameLoop = (now) => {
+      const deltaTime = Math.min(50, now - lastTime)
+      lastTime = now
 
-      // Update game
       game.update(deltaTime)
-
-      // Render
       render(ctx, game)
 
-      // Update state for UI
-      setGameState(game.getState())
+      const state = game.getState()
+
+      if (now - lastUiPush > UI_TICK_MS) {
+        lastUiPush = now
+        setUiState({
+          health: state.health,
+          money: state.money,
+          round: state.round,
+          totalRounds: state.totalRounds,
+          score: state.score,
+          waveActive: state.waveActive,
+          waveTimer: state.waveTimer,
+          wavePrepTime: state.wavePrepTime,
+          enemyCount: state.enemies.length,
+          currentEvent: state.currentEvent,
+          paused: state.paused,
+          victory: state.victory,
+          gameOver: state.gameOver,
+          stats: { ...state.stats }
+        })
+
+        if (state.victory && !finishedRef.current) {
+          finishedRef.current = true
+          onVictory?.(state)
+        }
+      }
 
       animationRef.current = requestAnimationFrame(gameLoop)
     }
 
-    gameLoop()
+    animationRef.current = requestAnimationFrame(gameLoop)
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
+      if (animationRef.current) cancelAnimationFrame(animationRef.current)
+      game.destroy()
+    }
+  }, [config, onGameOver, onVictory])
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.repeat) return
+      const game = gameRef.current
+      if (!game) return
+
+      if (e.key === 'Escape') {
+        setSelectedTowerType(null)
+        setSelectedTower(null)
+        return
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault()
+        if (!game.waveActive && !game.paused) {
+          game.skipPrep()
+        } else {
+          game.togglePause()
+        }
+        return
+      }
+
+      if (e.key.toLowerCase() === 'p') {
+        game.togglePause()
+        return
+      }
+
+      if (e.key.toLowerCase() === 'm') {
+        sound.toggleMute()
+        return
+      }
+
+      const idx = TOWER_HOTKEYS.indexOf(e.key)
+      if (idx !== -1 && idx < TOWER_TYPE_LIST.length) {
+        const t = TOWER_TYPE_LIST[idx]
+        sound.uiClick()
+        setSelectedTowerType((cur) => (cur === t.id ? null : t.id))
       }
     }
-  }, [config, onGameOver])
 
-  const render = (ctx, game) => {
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
+
+  const render = useCallback((ctx, game) => {
     const state = game.getState()
 
-    // Clear canvas
-    ctx.fillStyle = '#0a0a0a'
+    ctx.fillStyle = '#07070b'
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
 
-    // Draw scanline effect for retro look
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
-    for (let y = 0; y < CANVAS_HEIGHT; y += 4) {
-      ctx.fillRect(0, y, CANVAS_WIDTH, 2)
-    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.015)'
+    for (let y = 0; y < CANVAS_HEIGHT; y += 4) ctx.fillRect(0, y, CANVAS_WIDTH, 1)
 
-    // Draw grid
-    ctx.strokeStyle = '#1a1a1a'
+    ctx.strokeStyle = '#15151f'
     ctx.lineWidth = 1
     for (let x = 0; x <= GRID_WIDTH; x++) {
-      ctx.beginPath()
-      ctx.moveTo(x * GRID_SIZE, 0)
-      ctx.lineTo(x * GRID_SIZE, CANVAS_HEIGHT)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x * GRID_SIZE, 0); ctx.lineTo(x * GRID_SIZE, CANVAS_HEIGHT); ctx.stroke()
     }
     for (let y = 0; y <= GRID_HEIGHT; y++) {
-      ctx.beginPath()
-      ctx.moveTo(0, y * GRID_SIZE)
-      ctx.lineTo(CANVAS_WIDTH, y * GRID_SIZE)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, y * GRID_SIZE); ctx.lineTo(CANVAS_WIDTH, y * GRID_SIZE); ctx.stroke()
     }
 
-    // Draw path
-    ctx.strokeStyle = '#333'
-    ctx.lineWidth = GRID_SIZE * 0.6
+    ctx.strokeStyle = 'rgba(255, 200, 100, 0.08)'
+    ctx.lineWidth = GRID_SIZE * 0.85
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
     for (let i = 0; i < state.currentPath.length; i++) {
-      const point = state.currentPath[i]
-      const x = point.x * GRID_SIZE + GRID_SIZE / 2
-      const y = point.y * GRID_SIZE + GRID_SIZE / 2
-
-      if (i === 0) {
-        ctx.moveTo(x, y)
-      } else {
-        ctx.lineTo(x, y)
-      }
+      const p = state.currentPath[i]
+      const x = p.x * GRID_SIZE + GRID_SIZE / 2
+      const y = p.y * GRID_SIZE + GRID_SIZE / 2
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
     }
     ctx.stroke()
 
-    // Draw path markers (start and end)
+    ctx.strokeStyle = '#2b2438'
+    ctx.lineWidth = GRID_SIZE * 0.6
+    ctx.beginPath()
+    for (let i = 0; i < state.currentPath.length; i++) {
+      const p = state.currentPath[i]
+      const x = p.x * GRID_SIZE + GRID_SIZE / 2
+      const y = p.y * GRID_SIZE + GRID_SIZE / 2
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+
     const startPoint = state.currentPath[0]
     const endPoint = state.currentPath[state.currentPath.length - 1]
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 250)
 
-    ctx.fillStyle = '#00ff00'
+    ctx.fillStyle = `rgba(0, 255, 136, ${0.5 + pulse * 0.5})`
     ctx.fillRect(
       startPoint.x * GRID_SIZE + GRID_SIZE / 4,
       startPoint.y * GRID_SIZE + GRID_SIZE / 4,
@@ -140,7 +211,7 @@ function Game({ config, onGameOver, onReturnToMenu }) {
       GRID_SIZE / 2
     )
 
-    ctx.fillStyle = '#ff0000'
+    ctx.fillStyle = `rgba(255, 51, 85, ${0.5 + pulse * 0.5})`
     ctx.fillRect(
       endPoint.x * GRID_SIZE + GRID_SIZE / 4,
       endPoint.y * GRID_SIZE + GRID_SIZE / 4,
@@ -148,418 +219,356 @@ function Game({ config, onGameOver, onReturnToMenu }) {
       GRID_SIZE / 2
     )
 
-    // Draw towers
     for (const tower of state.towers) {
       const x = tower.x * GRID_SIZE + GRID_SIZE / 2
       const y = tower.y * GRID_SIZE + GRID_SIZE / 2
 
-      // Range indicator for selected tower
-      if (selectedTower === tower) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-        ctx.beginPath()
-        ctx.arc(x, y, tower.range * GRID_SIZE, 0, Math.PI * 2)
-        ctx.fill()
-
-        // Range circle outline
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+      if (selectedTowerRef.current === tower) {
+        ctx.fillStyle = 'rgba(0, 255, 136, 0.08)'
+        ctx.beginPath(); ctx.arc(x, y, tower.range * GRID_SIZE, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)'
         ctx.lineWidth = 2
         ctx.stroke()
       }
 
-      // Tower shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
-      ctx.fillRect(
-        tower.x * GRID_SIZE + 6,
-        tower.y * GRID_SIZE + 6,
-        GRID_SIZE - 8,
-        GRID_SIZE - 8
-      )
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+      ctx.fillRect(tower.x * GRID_SIZE + 6, tower.y * GRID_SIZE + 6, GRID_SIZE - 8, GRID_SIZE - 8)
 
-      // Tower base
-      ctx.fillStyle = '#333'
-      ctx.fillRect(
-        tower.x * GRID_SIZE + 4,
-        tower.y * GRID_SIZE + 4,
-        GRID_SIZE - 8,
-        GRID_SIZE - 8
-      )
+      ctx.fillStyle = '#1c1c2a'
+      ctx.fillRect(tower.x * GRID_SIZE + 4, tower.y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8)
 
-      // Tower base border
-      ctx.strokeStyle = '#555'
+      ctx.strokeStyle = '#3c3c55'
       ctx.lineWidth = 2
-      ctx.strokeRect(
-        tower.x * GRID_SIZE + 4,
-        tower.y * GRID_SIZE + 4,
-        GRID_SIZE - 8,
-        GRID_SIZE - 8
-      )
+      ctx.strokeRect(tower.x * GRID_SIZE + 4, tower.y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8)
 
-      // Tower turret shadow
       const turretSize = 12 + tower.level * 2
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.fillRect(
-        x - turretSize / 2 + 2,
-        y - turretSize / 2 + 2,
-        turretSize,
-        turretSize
-      )
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.fillRect(x - turretSize / 2 + 2, y - turretSize / 2 + 2, turretSize, turretSize)
 
-      // Tower turret
       ctx.fillStyle = tower.type.color
-      ctx.fillRect(
-        x - turretSize / 2,
-        y - turretSize / 2,
-        turretSize,
-        turretSize
-      )
+      ctx.fillRect(x - turretSize / 2, y - turretSize / 2, turretSize, turretSize)
 
-      // Tower turret highlight
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
-      ctx.fillRect(
-        x - turretSize / 2 + 2,
-        y - turretSize / 2 + 2,
-        turretSize - 4,
-        2
-      )
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
+      ctx.fillRect(x - turretSize / 2 + 2, y - turretSize / 2 + 2, turretSize - 4, 2)
 
-      // Level indicator
       ctx.fillStyle = '#000'
-      ctx.font = 'bold 10px Courier New'
+      ctx.font = 'bold 10px "Press Start 2P", monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(tower.level, x + 1, y + 1)
-
       ctx.fillStyle = '#fff'
       ctx.fillText(tower.level, x, y)
     }
 
-    // Draw enemies
     for (const enemy of state.enemies) {
-      // Enemy shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      ctx.fillRect(
-        enemy.x - enemy.type.size / 2 + 2,
-        enemy.y - enemy.type.size / 2 + 2,
-        enemy.type.size,
-        enemy.type.size
-      )
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.fillRect(enemy.x - enemy.type.size / 2 + 2, enemy.y - enemy.type.size / 2 + 2, enemy.type.size, enemy.type.size)
 
-      // Enemy body
       ctx.fillStyle = enemy.type.color
-      ctx.fillRect(
-        enemy.x - enemy.type.size / 2,
-        enemy.y - enemy.type.size / 2,
-        enemy.type.size,
-        enemy.type.size
-      )
+      ctx.fillRect(enemy.x - enemy.type.size / 2, enemy.y - enemy.type.size / 2, enemy.type.size, enemy.type.size)
 
-      // Enemy highlight
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
-      ctx.fillRect(
-        enemy.x - enemy.type.size / 2 + 2,
-        enemy.y - enemy.type.size / 2 + 2,
-        enemy.type.size - 4,
-        2
-      )
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+      ctx.fillRect(enemy.x - enemy.type.size / 2 + 2, enemy.y - enemy.type.size / 2 + 2, enemy.type.size - 4, 2)
 
-      // Health bar
       const healthBarWidth = enemy.type.size
       const healthBarHeight = 3
-      const healthPercent = enemy.health / enemy.maxHealth
+      const healthPercent = Math.max(0, enemy.health / enemy.maxHealth)
 
       ctx.fillStyle = '#000'
-      ctx.fillRect(
-        enemy.x - healthBarWidth / 2,
-        enemy.y - enemy.type.size / 2 - 6,
-        healthBarWidth,
-        healthBarHeight
-      )
+      ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 6, healthBarWidth, healthBarHeight)
 
-      ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000'
-      ctx.fillRect(
-        enemy.x - healthBarWidth / 2,
-        enemy.y - enemy.type.size / 2 - 6,
-        healthBarWidth * healthPercent,
-        healthBarHeight
-      )
+      ctx.fillStyle = healthPercent > 0.5 ? '#00ff88' : healthPercent > 0.25 ? '#ffcc00' : '#ff3355'
+      ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 6, healthBarWidth * healthPercent, healthBarHeight)
     }
 
-    // Draw projectiles with glow effect
     for (const proj of state.projectiles) {
-      // Glow
       ctx.fillStyle = proj.color + '44'
       ctx.fillRect(proj.x - 5, proj.y - 5, 10, 10)
-
-      // Core
       ctx.fillStyle = proj.color
       ctx.fillRect(proj.x - 3, proj.y - 3, 6, 6)
-
-      // Highlight
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(proj.x - 1, proj.y - 1, 2, 2)
     }
 
-    // Draw particles
-    if (state.particles) {
-      state.particles.render(ctx)
-    }
+    if (state.particles) state.particles.render(ctx)
 
-    // Draw hover effect
-    if (hoveredCell && selectedTowerType) {
-      const { x, y } = hoveredCell
+    const hovered = hoveredCellRef.current
+    const towerType = selectedTowerTypeRef.current
+    if (hovered && towerType) {
+      const { x, y } = hovered
       const canPlace = game.canPlaceTower(x, y)
+      const tower = TOWER_TYPES[towerType]
+      const affordable = game.money >= tower.cost
 
-      ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)'
+      ctx.fillStyle = canPlace && affordable
+        ? 'rgba(0, 255, 136, 0.25)'
+        : 'rgba(255, 51, 85, 0.25)'
       ctx.fillRect(x * GRID_SIZE, y * GRID_SIZE, GRID_SIZE, GRID_SIZE)
 
       if (canPlace) {
-        const tower = TOWER_TYPES[selectedTowerType]
         const centerX = x * GRID_SIZE + GRID_SIZE / 2
         const centerY = y * GRID_SIZE + GRID_SIZE / 2
-
-        // Show range
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, tower.range * GRID_SIZE, 0, Math.PI * 2)
-        ctx.fill()
-
-        // Show preview
-        ctx.fillStyle = tower.color + '88'
-        ctx.fillRect(
-          centerX - 8,
-          centerY - 8,
-          16,
-          16
-        )
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'
+        ctx.beginPath(); ctx.arc(centerX, centerY, tower.range * GRID_SIZE, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+        ctx.fillStyle = tower.color + '99'
+        ctx.fillRect(centerX - 8, centerY - 8, 16, 16)
       }
     }
 
-    // Event banner
-    if (state.currentEvent && state.waveActive) {
-      const bannerHeight = 40
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-      ctx.fillRect(0, 10, CANVAS_WIDTH, bannerHeight)
-
-      ctx.fillStyle = state.currentEvent.color
-      ctx.fillRect(0, 10, 5, bannerHeight)
-
-      ctx.fillStyle = state.currentEvent.color
-      ctx.font = 'bold 16px Courier New'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      ctx.fillText(state.currentEvent.name, 15, 17)
-
-      ctx.fillStyle = '#fff'
-      ctx.font = '12px Courier New'
-      ctx.fillText(state.currentEvent.description, 15, 35)
-    }
-
-    // Victory/Game Over overlay
-    if (state.victory) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+    if (state.paused && !state.gameOver && !state.victory) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-
-      ctx.fillStyle = '#00ff00'
-      ctx.font = 'bold 48px Courier New'
+      ctx.fillStyle = '#fff'
+      ctx.font = 'bold 32px "Press Start 2P", monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('VICTORY!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40)
-
-      ctx.fillStyle = '#fff'
-      ctx.font = '24px Courier New'
-      ctx.fillText(`Score: ${state.score}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20)
+      ctx.fillText('PAUSED', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 10)
+      ctx.fillStyle = '#8a8aa3'
+      ctx.font = '14px "Press Start 2P", monospace'
+      ctx.fillText('press P or SPACE to resume', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30)
     }
-  }
+  }, [])
 
-  const handleCanvasClick = (e) => {
+  const cellFromEvent = useCallback((e) => {
     const canvas = canvasRef.current
-    const game = gameRef.current
-
-    if (!canvas || !game) return
-
+    if (!canvas) return null
     const rect = canvas.getBoundingClientRect()
     const scaleX = CANVAS_WIDTH / rect.width
     const scaleY = CANVAS_HEIGHT / rect.height
+    const cx = (e.clientX - rect.left) * scaleX
+    const cy = (e.clientY - rect.top) * scaleY
+    return { x: Math.floor(cx / GRID_SIZE), y: Math.floor(cy / GRID_SIZE) }
+  }, [])
 
-    const canvasX = (e.clientX - rect.left) * scaleX
-    const canvasY = (e.clientY - rect.top) * scaleY
+  const handleCanvasClick = (e) => {
+    const game = gameRef.current
+    if (!game) return
+    const cell = cellFromEvent(e)
+    if (!cell) return
 
-    const x = Math.floor(canvasX / GRID_SIZE)
-    const y = Math.floor(canvasY / GRID_SIZE)
-
-    if (selectedTowerType && !gameState.waveActive) {
-      // Place tower
-      const success = game.placeTower(x, y, selectedTowerType)
-      if (success) {
-        setSelectedTowerType(null)
-      }
+    if (selectedTowerType) {
+      const success = game.placeTower(cell.x, cell.y, selectedTowerType)
+      if (!success) sound.cantAfford()
+      if (success && !e.shiftKey) setSelectedTowerType(null)
     } else {
-      // Select tower
-      const tower = game.towers.find(t => t.x === x && t.y === y)
+      const tower = game.towers.find(t => t.x === cell.x && t.y === cell.y)
+      if (tower) sound.uiClick()
       setSelectedTower(tower || null)
     }
   }
 
   const handleCanvasMouseMove = (e) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    hoveredCellRef.current = cellFromEvent(e)
+  }
 
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = CANVAS_WIDTH / rect.width
-    const scaleY = CANVAS_HEIGHT / rect.height
-
-    const canvasX = (e.clientX - rect.left) * scaleX
-    const canvasY = (e.clientY - rect.top) * scaleY
-
-    const x = Math.floor(canvasX / GRID_SIZE)
-    const y = Math.floor(canvasY / GRID_SIZE)
-
-    setHoveredCell({ x, y })
+  const handleCanvasMouseLeave = () => {
+    hoveredCellRef.current = null
   }
 
   const handleUpgradeTower = () => {
-    if (selectedTower) {
-      const game = gameRef.current
-      if (!game) return
-      game.upgradeTower(selectedTower)
+    const game = gameRef.current
+    if (game && selectedTower) {
+      const ok = game.upgradeTower(selectedTower)
+      if (!ok) sound.cantAfford()
     }
   }
 
   const handleSellTower = () => {
-    if (selectedTower) {
-      const game = gameRef.current
-      if (!game) return
-      const refund = Math.floor(selectedTower.type.cost * 0.7)
-      game.money += refund
-      game.towers = game.towers.filter(t => t !== selectedTower)
+    const game = gameRef.current
+    if (game && selectedTower) {
+      game.sellTower(selectedTower)
       setSelectedTower(null)
     }
   }
 
+  const handlePauseToggle = () => { sound.uiClick(); gameRef.current?.togglePause() }
+  const handleSkipPrep = () => { sound.uiClick(); gameRef.current?.skipPrep() }
+  const handleMuteToggle = () => sound.toggleMute()
+
+  const prepRemaining = Math.max(0, Math.ceil((uiState.wavePrepTime - uiState.waveTimer) / 1000))
+  const healthPct = Math.max(0, Math.min(100, (uiState.health / INITIAL_HEALTH) * 100))
+
   return (
-    <div className="game-container">
-      <div className="game-header">
-        <div className="stat">
-          <span className="stat-label">Health:</span>
-          <span className="stat-value health">{gameState.health}</span>
+    <div className="game-container" ref={wrapRef}>
+      <header className="game-header" role="banner">
+        <div className="header-stats">
+          <div className="stat" aria-label={`Health ${uiState.health} of ${INITIAL_HEALTH}`}>
+            <span className="stat-label">Health</span>
+            <div className="stat-bar">
+              <div className="stat-bar-fill health" style={{ width: `${healthPct}%` }} />
+              <span className="stat-bar-text">{uiState.health}</span>
+            </div>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Money</span>
+            <span className="stat-value money">${uiState.money}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Round</span>
+            <span className="stat-value">{uiState.round}/{uiState.totalRounds}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">Score</span>
+            <span className="stat-value">{uiState.score}</span>
+          </div>
         </div>
-        <div className="stat">
-          <span className="stat-label">Money:</span>
-          <span className="stat-value money">${gameState.money}</span>
+
+        <div className="header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleMuteToggle}
+            aria-label={audio.muted ? 'Unmute' : 'Mute'}
+            title={audio.muted ? 'Unmute (M)' : 'Mute (M)'}
+          >
+            {audio.muted ? '🔇' : '🔊'}
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handlePauseToggle}
+            aria-label={uiState.paused ? 'Resume game' : 'Pause game'}
+            title="Pause / Resume (P)"
+          >
+            {uiState.paused ? '▶' : 'II'}
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onReturnToMenu}
+            aria-label="Return to menu"
+            title="Return to menu"
+          >
+            ✕
+          </button>
         </div>
-        <div className="stat">
-          <span className="stat-label">Round:</span>
-          <span className="stat-value">{gameState.round}/{gameState.totalRounds}</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">Score:</span>
-          <span className="stat-value">{gameState.score}</span>
-        </div>
-      </div>
+      </header>
 
       <div className="game-content">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          onClick={handleCanvasClick}
-          onMouseMove={handleCanvasMouseMove}
-          className="game-canvas"
-        />
+        <div className="canvas-wrap">
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            onClick={handleCanvasClick}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseLeave={handleCanvasMouseLeave}
+            className="game-canvas"
+            aria-label="Pixel Defense game board"
+          />
+        </div>
 
-        <div className="game-sidebar">
-          {!gameState.waveActive ? (
-            <>
-              <div className="wave-status">
-                <h3>{gameState.round === 0 ? 'Get Ready!' : 'Preparation Phase'}</h3>
-                <div className="timer">
-                  {gameState.round === 0 ? 'Wave 1' : 'Next wave'} in: {Math.ceil((gameState.wavePrepTime - gameState.waveTimer) / 1000)}s
-                </div>
+        <aside className="game-sidebar" aria-label="Game controls">
+          {!uiState.waveActive && !uiState.victory && !uiState.gameOver ? (
+            <div className="wave-status prep">
+              <div className="wave-status-row">
+                <h3>{uiState.round === 0 ? 'Prepare!' : 'Prep Phase'}</h3>
+                <button
+                  type="button"
+                  className="skip-button"
+                  onClick={handleSkipPrep}
+                  title="Skip wait (Space)"
+                >
+                  Skip ▶▶
+                </button>
               </div>
-
-              <div className="tower-shop">
-                <h3>Build Towers</h3>
-                {Object.values(TOWER_TYPES).map(tower => (
-                  <button
-                    key={tower.id}
-                    className={`tower-button ${selectedTowerType === tower.id ? 'active' : ''}`}
-                    onClick={() => setSelectedTowerType(tower.id)}
-                    disabled={gameState.money < tower.cost}
-                  >
-                    <div className="tower-icon" style={{ background: tower.color }}></div>
-                    <div className="tower-info">
-                      <div className="tower-name">{tower.name}</div>
-                      <div className="tower-cost">${tower.cost}</div>
-                      <div className="tower-stats">
-                        DMG: {tower.damage} | RNG: {tower.range} | SPD: {(1000/tower.fireRate).toFixed(1)}/s
-                      </div>
-                    </div>
-                  </button>
-                ))}
+              <div className="timer">
+                Next wave in <strong>{prepRemaining}s</strong>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="wave-status active">
-                <h3>Wave {gameState.round} Active!</h3>
-                <div className="enemy-count">
-                  Enemies: {gameState.enemies.length}
-                </div>
+              <div className="prep-progress">
+                <div
+                  className="prep-progress-fill"
+                  style={{ width: `${(uiState.waveTimer / uiState.wavePrepTime) * 100}%` }}
+                />
               </div>
-              {gameState.currentEvent && (
-                <div className="event-banner" style={{ borderColor: gameState.currentEvent.color }}>
-                  <div className="event-title" style={{ color: gameState.currentEvent.color }}>
-                    {gameState.currentEvent.name}
+            </div>
+          ) : uiState.waveActive ? (
+            <div className="wave-status active">
+              <h3>Wave {uiState.round}</h3>
+              <div className="enemy-count">
+                Enemies left: <strong>{uiState.enemyCount}</strong>
+              </div>
+              {uiState.currentEvent && (
+                <div className="event-banner" style={{ borderColor: uiState.currentEvent.color }}>
+                  <div className="event-title" style={{ color: uiState.currentEvent.color }}>
+                    {uiState.currentEvent.name}
                   </div>
                   <div className="event-description">
-                    {gameState.currentEvent.description}
+                    {uiState.currentEvent.description}
                   </div>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          ) : null}
+
+          <section className="tower-shop" aria-label="Tower shop">
+            <h3>Build</h3>
+            <ul className="tower-list">
+              {TOWER_TYPE_LIST.map((tower, idx) => {
+                const affordable = uiState.money >= tower.cost
+                const active = selectedTowerType === tower.id
+                return (
+                  <li key={tower.id}>
+                    <button
+                      type="button"
+                      className={`tower-button ${active ? 'active' : ''}`}
+                      onClick={() => setSelectedTowerType(active ? null : tower.id)}
+                      disabled={!affordable}
+                      aria-pressed={active}
+                      title={`${tower.name} ($${tower.cost}) — hotkey ${idx + 1}`}
+                    >
+                      <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
+                      <span className="tower-icon" style={{ background: tower.color }} />
+                      <span className="tower-info">
+                        <span className="tower-name">{tower.name}</span>
+                        <span className="tower-cost">${tower.cost}</span>
+                        <span className="tower-stats">
+                          DMG {tower.damage} · RNG {tower.range} · {(1000 / tower.fireRate).toFixed(1)}/s
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
 
           {selectedTower && (
-            <div className="tower-detail">
-              <h3>Tower Details</h3>
+            <section className="tower-detail" aria-label="Selected tower details">
+              <h3>{selectedTower.type.name}</h3>
               <div className="detail-content">
-                <div className="detail-row">
-                  <span>Type:</span>
-                  <span>{selectedTower.type.name}</span>
-                </div>
-                <div className="detail-row">
-                  <span>Level:</span>
-                  <span>{selectedTower.level}/3</span>
-                </div>
-                <div className="detail-row">
-                  <span>Damage:</span>
-                  <span>{selectedTower.damage}</span>
-                </div>
-                <div className="detail-row">
-                  <span>Range:</span>
-                  <span>{selectedTower.range}</span>
-                </div>
+                <div className="detail-row"><span>Level</span><span>{selectedTower.level}/3</span></div>
+                <div className="detail-row"><span>Damage</span><span>{selectedTower.damage}</span></div>
+                <div className="detail-row"><span>Range</span><span>{selectedTower.range}</span></div>
                 <div className="actions">
                   {selectedTower.level < 3 && (
                     <button
+                      type="button"
                       onClick={handleUpgradeTower}
-                      disabled={gameState.money < selectedTower.type.upgradeCost}
+                      disabled={uiState.money < selectedTower.type.upgradeCost}
                     >
-                      Upgrade (${selectedTower.type.upgradeCost})
+                      Upgrade · ${selectedTower.type.upgradeCost}
                     </button>
                   )}
-                  <button onClick={handleSellTower} className="sell-button">
-                    Sell (${Math.floor(selectedTower.type.cost * 0.7)})
+                  <button type="button" onClick={handleSellTower} className="sell-button">
+                    Sell · ${Math.floor(selectedTower.type.cost * 0.7)}
                   </button>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
-          <button className="menu-button-game" onClick={onReturnToMenu}>
-            Return to Menu
-          </button>
-        </div>
+          <div className="hotkeys-hint" aria-hidden="true">
+            <span><kbd>1</kbd>–<kbd>4</kbd> tower</span>
+            <span><kbd>Space</kbd> skip / pause</span>
+            <span><kbd>P</kbd> pause</span>
+            <span><kbd>M</kbd> mute</span>
+            <span><kbd>Esc</kbd> deselect</span>
+          </div>
+        </aside>
       </div>
     </div>
   )
