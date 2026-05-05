@@ -4,46 +4,60 @@ import {
 } from './constants'
 import { selectRandomEvent } from './events'
 import { ParticleSystem } from './ParticleSystem'
+import { sound } from './SoundManager'
+
+const SELL_REFUND_RATIO = 0.7
 
 export class GameManager {
   constructor(config, onGameOver) {
     this.config = config
     this.onGameOver = onGameOver
 
-    // Game state
     this.health = INITIAL_HEALTH
     this.money = INITIAL_MONEY
     this.currentRound = 0
     this.score = 0
     this.gameOver = false
+    this.victory = false
+    this.paused = false
 
-    // Entities
     this.towers = []
     this.enemies = []
     this.projectiles = []
     this.particles = new ParticleSystem()
 
-    // Wave management
     this.waveActive = false
     this.wavePrepTime = WAVE_PREP_TIME
-    this.waveTimer = 0  // Start at 0 to give prep time before first wave
+    this.waveTimer = 0
     this.currentEvent = null
     this.enemiesSpawned = 0
     this.enemiesToSpawn = 0
+    this.spawnQueue = []
 
-    // Path selection
+    this.stats = {
+      kills: 0,
+      towersBuilt: 0,
+      moneySpent: 0,
+      moneyEarned: 0,
+      leaks: 0
+    }
+
     this.currentPath = this.selectRandomPath()
-
-    // Tower placement
-    this.selectedTowerType = null
-    this.hoveredCell = null
-
-    // Time tracking
-    this.lastTime = Date.now()
+    this.gameTime = 0
   }
 
   selectRandomPath() {
     return PATHS[Math.floor(Math.random() * PATHS.length)]
+  }
+
+  togglePause() {
+    if (this.gameOver || this.victory) return
+    this.paused = !this.paused
+  }
+
+  skipPrep() {
+    if (this.waveActive || this.gameOver || this.victory) return
+    this.waveTimer = this.wavePrepTime
   }
 
   startWave() {
@@ -57,10 +71,8 @@ export class GameManager {
     this.waveTimer = 0
     this.enemiesSpawned = 0
 
-    // Select random event
     this.currentEvent = selectRandomEvent(this.currentRound)
-
-    // Spawn enemies
+    sound.waveStart()
     this.spawnWave()
   }
 
@@ -68,7 +80,6 @@ export class GameManager {
     const baseEnemyCount = 5 + this.currentRound * 2
     let enemyCount = Math.floor(baseEnemyCount * this.config.difficultyMultiplier)
 
-    // Apply event modifications
     let waveConfig = {
       round: this.currentRound,
       enemyCount,
@@ -85,18 +96,16 @@ export class GameManager {
       enemyCount = waveConfig.enemyCount
     }
 
-    const enemyTypes = Object.values(ENEMY_TYPES)
+    this.spawnQueue = []
 
-    // Boss Rush event
     if (waveConfig.bossCount > 0) {
       this.enemiesToSpawn = waveConfig.bossCount
       for (let i = 0; i < waveConfig.bossCount; i++) {
-        setTimeout(() => {
-          if (!this.gameOver) {
-            this.spawnEnemy(ENEMY_TYPES.BOSS, waveConfig)
-            this.enemiesSpawned++
-          }
-        }, i * 1500)
+        this.spawnQueue.push({
+          delay: i * 1500,
+          type: ENEMY_TYPES.BOSS,
+          waveConfig
+        })
       }
       return
     }
@@ -104,15 +113,12 @@ export class GameManager {
     this.enemiesToSpawn = enemyCount
 
     for (let i = 0; i < enemyCount; i++) {
-      // Random enemy type with weighting
-      let enemyType
       const rand = Math.random()
+      let enemyType
 
       if (waveConfig.swarmMode) {
-        // Swarm: mostly fast and basic
         enemyType = rand < 0.7 ? ENEMY_TYPES.FAST : ENEMY_TYPES.BASIC
       } else if (waveConfig.airRaid) {
-        // Air raid: all fast
         enemyType = ENEMY_TYPES.FAST
       } else if (this.currentRound < 5) {
         enemyType = rand < 0.8 ? ENEMY_TYPES.BASIC : ENEMY_TYPES.FAST
@@ -127,19 +133,17 @@ export class GameManager {
         else enemyType = ENEMY_TYPES.BOSS
       }
 
-      // Add boss every 5 rounds (unless event overrides)
       if (this.currentRound % 5 === 0 && i === enemyCount - 1 && !waveConfig.swarmMode) {
         enemyType = ENEMY_TYPES.BOSS
       }
 
       const spawnDelay = waveConfig.swarmMode ? 300 : 800
 
-      setTimeout(() => {
-        if (!this.gameOver) {
-          this.spawnEnemy(enemyType, waveConfig)
-          this.enemiesSpawned++
-        }
-      }, i * spawnDelay)
+      this.spawnQueue.push({
+        delay: i * spawnDelay,
+        type: enemyType,
+        waveConfig
+      })
     }
   }
 
@@ -150,10 +154,12 @@ export class GameManager {
     const speedMultiplier = waveConfig.speedMultiplier || 1
     const rewardMultiplier = waveConfig.rewardMultiplier || 1
 
+    const health = enemyType.health * this.config.difficultyMultiplier * healthMultiplier
+
     this.enemies.push({
       type: enemyType,
-      health: enemyType.health * this.config.difficultyMultiplier * healthMultiplier,
-      maxHealth: enemyType.health * this.config.difficultyMultiplier * healthMultiplier,
+      health,
+      maxHealth: health,
       speed: enemyType.speed * speedMultiplier,
       x: startPos.x * GRID_SIZE + GRID_SIZE / 2,
       y: startPos.y * GRID_SIZE + GRID_SIZE / 2,
@@ -166,9 +172,13 @@ export class GameManager {
     if (!this.canPlaceTower(gridX, gridY)) return false
 
     const tower = TOWER_TYPES[towerType]
-    if (this.money < tower.cost) return false
+    if (!tower || this.money < tower.cost) return false
 
     this.money -= tower.cost
+    this.stats.moneySpent += tower.cost
+    this.stats.towersBuilt++
+    sound.build()
+
     this.towers.push({
       type: tower,
       x: gridX,
@@ -184,62 +194,103 @@ export class GameManager {
   }
 
   canPlaceTower(gridX, gridY) {
-    // Check if on path
-    for (const pathPoint of this.currentPath) {
-      if (pathPoint.x === gridX && pathPoint.y === gridY) {
-        return false
-      }
+    if (gridX < 0 || gridX >= GRID_WIDTH || gridY < 0 || gridY >= GRID_HEIGHT) return false
+
+    const cx = gridX + 0.5
+    const cy = gridY + 0.5
+    const blockDistance = 0.85
+
+    for (let i = 0; i < this.currentPath.length - 1; i++) {
+      const a = this.currentPath[i]
+      const b = this.currentPath[i + 1]
+      const ax = a.x + 0.5
+      const ay = a.y + 0.5
+      const bx = b.x + 0.5
+      const by = b.y + 0.5
+
+      const dx = bx - ax
+      const dy = by - ay
+      const lenSq = dx * dx + dy * dy
+      let t = lenSq === 0 ? 0 : ((cx - ax) * dx + (cy - ay) * dy) / lenSq
+      if (t < 0) t = 0
+      if (t > 1) t = 1
+      const px = ax + t * dx
+      const py = ay + t * dy
+
+      if (Math.hypot(cx - px, cy - py) < blockDistance) return false
     }
 
-    // Check if tower already exists
     for (const tower of this.towers) {
-      if (tower.x === gridX && tower.y === gridY) {
-        return false
-      }
+      if (tower.x === gridX && tower.y === gridY) return false
     }
-
-    return gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-  }
-
-  upgradeTower(tower) {
-    if (this.money < tower.type.upgradeCost) return false
-    if (tower.level >= 3) return false
-
-    this.money -= tower.type.upgradeCost
-    tower.level++
-    tower.damage = tower.type.upgradeDamage * tower.level
-    tower.range = tower.type.upgradeRange || tower.range
 
     return true
   }
 
-  update(deltaTime) {
-    if (this.gameOver || this.victory) return
+  upgradeTower(tower) {
+    if (!tower || tower.level >= 3) return false
+    if (this.money < tower.type.upgradeCost) return false
 
-    // Update wave timer
+    this.money -= tower.type.upgradeCost
+    this.stats.moneySpent += tower.type.upgradeCost
+    tower.level++
+    tower.damage = tower.type.upgradeDamage * tower.level
+    tower.range = tower.type.upgradeRange || tower.range
+    sound.upgrade()
+
+    return true
+  }
+
+  sellTower(tower) {
+    const idx = this.towers.indexOf(tower)
+    if (idx === -1) return 0
+    const refund = Math.floor(tower.type.cost * SELL_REFUND_RATIO)
+    this.money += refund
+    this.towers.splice(idx, 1)
+    sound.sell()
+    return refund
+  }
+
+  update(deltaTime) {
+    if (this.gameOver || this.victory || this.paused) return
+
+    this.gameTime += deltaTime
+
+    if (this.spawnQueue.length > 0) {
+      const remaining = []
+      for (const spawn of this.spawnQueue) {
+        spawn.delay -= deltaTime
+        if (spawn.delay <= 0) {
+          this.spawnEnemy(spawn.type, spawn.waveConfig)
+          this.enemiesSpawned++
+        } else {
+          remaining.push(spawn)
+        }
+      }
+      this.spawnQueue = remaining
+    }
+
     if (!this.waveActive) {
       this.waveTimer += deltaTime
       if (this.waveTimer >= this.wavePrepTime) {
         this.startWave()
       }
-    } else {
-      // Check if wave is complete: all enemies spawned AND no enemies left
-      if (this.enemiesSpawned >= this.enemiesToSpawn && this.enemies.length === 0) {
-        this.waveActive = false
-        this.waveTimer = 0
+    } else if (this.enemiesSpawned >= this.enemiesToSpawn && this.enemies.length === 0) {
+      this.waveActive = false
+      this.waveTimer = 0
+      this.currentEvent = null
+
+      if (this.currentRound >= this.config.rounds) {
+        this.victory = true
+        sound.victory()
+      } else {
+        sound.waveClear()
       }
     }
 
-    // Update enemies
     this.updateEnemies(deltaTime)
-
-    // Update towers
     this.updateTowers(deltaTime)
-
-    // Update projectiles
     this.updateProjectiles(deltaTime)
-
-    // Update particles
     this.particles.update(deltaTime)
   }
 
@@ -247,7 +298,6 @@ export class GameManager {
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i]
 
-      // Move along path
       if (enemy.pathIndex < this.currentPath.length - 1) {
         const targetPoint = this.currentPath[enemy.pathIndex + 1]
         const targetX = targetPoint.x * GRID_SIZE + GRID_SIZE / 2
@@ -256,15 +306,15 @@ export class GameManager {
         const dx = targetX - enemy.x
         const dy = targetY - enemy.y
         const distance = Math.sqrt(dx * dx + dy * dy)
+        const step = enemy.speed * deltaTime / 16
 
-        if (distance < enemy.speed * deltaTime / 16) {
+        if (distance < step) {
           enemy.pathIndex++
         } else {
-          enemy.x += (dx / distance) * enemy.speed * deltaTime / 16
-          enemy.y += (dy / distance) * enemy.speed * deltaTime / 16
+          enemy.x += (dx / distance) * step
+          enemy.y += (dy / distance) * step
         }
       } else {
-        // Reached end
         const targetPoint = this.currentPath[this.currentPath.length - 1]
         const targetX = targetPoint.x * GRID_SIZE + GRID_SIZE / 2
         const targetY = targetPoint.y * GRID_SIZE + GRID_SIZE / 2
@@ -272,70 +322,81 @@ export class GameManager {
         const dx = targetX - enemy.x
         const dy = targetY - enemy.y
         const distance = Math.sqrt(dx * dx + dy * dy)
+        const step = enemy.speed * deltaTime / 16
 
         if (distance < 5) {
           this.health--
+          this.stats.leaks++
+          sound.leak()
           this.enemies.splice(i, 1)
 
           if (this.health <= 0) {
+            this.health = 0
             this.gameOver = true
-            this.onGameOver()
+            this.spawnQueue = []
+            this.enemies = []
+            this.projectiles = []
+            sound.gameOver()
+            this.onGameOver?.()
           }
           continue
-        } else {
-          enemy.x += (dx / distance) * enemy.speed * deltaTime / 16
-          enemy.y += (dy / distance) * enemy.speed * deltaTime / 16
         }
+
+        enemy.x += (dx / distance) * step
+        enemy.y += (dy / distance) * step
       }
 
-      // Check if dead
       if (enemy.health <= 0) {
         this.money += enemy.reward
         this.score += enemy.reward * 10
+        this.stats.kills++
+        this.stats.moneyEarned += enemy.reward
 
-        // Create death effects
         this.particles.createExplosion(enemy.x, enemy.y, enemy.type.color, 8)
         this.particles.createMoneyEffect(enemy.x, enemy.y, enemy.reward)
+        sound.enemyDeath()
 
         this.enemies.splice(i, 1)
       }
     }
   }
 
-  updateTowers(deltaTime) {
-    const currentTime = Date.now()
+  updateTowers() {
+    const currentTime = this.gameTime
 
     for (const tower of this.towers) {
       if (currentTime - tower.lastFire < tower.fireRate) continue
 
-      // Find target
-      let closestEnemy = null
-      let closestDistance = Infinity
-
       const towerX = tower.x * GRID_SIZE + GRID_SIZE / 2
       const towerY = tower.y * GRID_SIZE + GRID_SIZE / 2
+      const rangePx = tower.range * GRID_SIZE
+
+      let bestEnemy = null
+      let bestProgress = -1
 
       for (const enemy of this.enemies) {
         const dx = enemy.x - towerX
         const dy = enemy.y - towerY
         const distance = Math.sqrt(dx * dx + dy * dy)
+        if (distance > rangePx) continue
 
-        if (distance <= tower.range * GRID_SIZE && distance < closestDistance) {
-          closestDistance = distance
-          closestEnemy = enemy
+        const progress = enemy.pathIndex + (1 - distance / rangePx) * 0.001
+        if (progress > bestProgress) {
+          bestProgress = progress
+          bestEnemy = enemy
         }
       }
 
-      if (closestEnemy) {
+      if (bestEnemy) {
         tower.lastFire = currentTime
+        sound.shoot(tower.type.id)
 
-        // Create projectile
         this.projectiles.push({
           x: towerX,
           y: towerY,
-          targetX: closestEnemy.x,
-          targetY: closestEnemy.y,
-          target: closestEnemy,
+          targetX: bestEnemy.x,
+          targetY: bestEnemy.y,
+          target: bestEnemy,
           damage: tower.damage,
           speed: 8,
           color: tower.type.color,
@@ -345,7 +406,7 @@ export class GameManager {
     }
   }
 
-  updateProjectiles(deltaTime) {
+  updateProjectiles() {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const proj = this.projectiles[i]
 
@@ -354,24 +415,21 @@ export class GameManager {
       const distance = Math.sqrt(dx * dx + dy * dy)
 
       if (distance < proj.speed) {
-        // Hit target
         if (proj.splash > 0) {
-          // Splash damage
           this.particles.createSplashEffect(proj.targetX, proj.targetY, proj.splash * GRID_SIZE, proj.color)
+          sound.explosion()
 
           for (const enemy of this.enemies) {
             const edx = enemy.x - proj.targetX
             const edy = enemy.y - proj.targetY
             const dist = Math.sqrt(edx * edx + edy * edy)
-
             if (dist <= proj.splash * GRID_SIZE) {
               enemy.health -= proj.damage
             }
           }
         } else {
-          // Single target
           this.particles.createHitEffect(proj.targetX, proj.targetY)
-
+          sound.hit()
           if (proj.target && proj.target.health > 0) {
             proj.target.health -= proj.damage
           }
@@ -383,6 +441,14 @@ export class GameManager {
         proj.y += (dy / distance) * proj.speed
       }
     }
+  }
+
+  destroy() {
+    this.spawnQueue = []
+    this.enemies = []
+    this.projectiles = []
+    this.towers = []
+    this.particles.clear()
   }
 
   getState() {
@@ -401,7 +467,10 @@ export class GameManager {
       particles: this.particles,
       currentPath: this.currentPath,
       currentEvent: this.currentEvent,
-      victory: this.victory || false
+      victory: this.victory,
+      gameOver: this.gameOver,
+      paused: this.paused,
+      stats: this.stats
     }
   }
 }

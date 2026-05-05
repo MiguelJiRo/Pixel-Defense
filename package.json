@@ -1,17 +1,30 @@
 {
   "name": "pixel-defense",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "1.1.0",
+  "description": "A retro pixel-art tower defense game built with React and HTML5 Canvas.",
   "type": "module",
+  "private": true,
+  "license": "MIT",
+  "author": "Miguel Jiménez Rodríguez (MiguelJiRo)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MiguelJiRo/Pixel-Defense.git"
+  },
+  "homepage": "https://github.com/MiguelJiRo/Pixel-Defense",
+  "keywords": [
+    "tower-defense",
+    "pixel-art",
+    "retro",
+    "react",
+    "canvas",
+    "browser-game",
+    "vite"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
