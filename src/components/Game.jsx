@@ -9,7 +9,7 @@ import DamageIcon from './DamageIcon'
 import Legend from './Legend'
 import './Game.css'
 
-const TOWER_HOTKEYS = ['1', '2', '3', '4']
+const TOWER_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8']
 const TOWER_TYPE_LIST = Object.values(TOWER_TYPES)
 const UI_TICK_MS = 100
 
@@ -380,6 +380,25 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
         ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 10, healthBarWidth * sPct, healthBarHeight)
       }
 
+      // Slow status: blue tint over body + small icicle marker
+      if (enemy.slowRemaining > 0) {
+        ctx.fillStyle = `rgba(92, 230, 255, ${0.25 + 0.15 * Math.sin(now / 150)})`
+        ctx.fillRect(enemy.x - enemy.type.size / 2, enemy.y - enemy.type.size / 2, enemy.type.size, enemy.type.size)
+        ctx.fillStyle = '#5ce6ff'
+        ctx.fillRect(enemy.x - enemy.type.size / 2 - 3, enemy.y - enemy.type.size / 2 - 1, 2, 4)
+      }
+
+      // Burn status: flickering flames above
+      if (enemy.burnRemaining > 0) {
+        const flicker = Math.sin(now / 80 + enemy.x) * 0.5 + 0.5
+        ctx.fillStyle = `rgba(255, 91, 58, ${0.6 + 0.3 * flicker})`
+        ctx.fillRect(enemy.x - 4, enemy.y - enemy.type.size / 2 - 14, 2, 4 + Math.floor(flicker * 3))
+        ctx.fillStyle = `rgba(255, 200, 60, ${0.7 + 0.2 * flicker})`
+        ctx.fillRect(enemy.x - 1, enemy.y - enemy.type.size / 2 - 16, 2, 5 + Math.floor((1 - flicker) * 3))
+        ctx.fillStyle = `rgba(255, 91, 58, ${0.6 + 0.2 * flicker})`
+        ctx.fillRect(enemy.x + 2, enemy.y - enemy.type.size / 2 - 14, 2, 4 + Math.floor(flicker * 2))
+      }
+
       // Resistance / vulnerability indicator vs the selected damage type
       if (previewType && enemy.type.resistances) {
         const resist = enemy.type.resistances[previewType]
@@ -407,6 +426,53 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       ctx.fillRect(proj.x - 3, proj.y - 3, 6, 6)
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(proj.x - 1, proj.y - 1, 2, 2)
+    }
+
+    // BEAM: continuous laser from each beam tower to its locked target
+    for (const tower of state.towers) {
+      if (tower.type.behavior !== 'BEAM' || !tower.beamTarget) continue
+      const target = tower.beamTarget
+      if (!target || target.health <= 0) continue
+      const fromX = tower.x * GRID_SIZE + GRID_SIZE / 2
+      const fromY = tower.y * GRID_SIZE + GRID_SIZE / 2
+      const ramp = Math.min(1, (tower.beamLocked || 0) / (tower.type.rampDurationMs || 500))
+
+      // Outer glow
+      ctx.strokeStyle = tower.type.color + '55'
+      ctx.lineWidth = 5 + ramp * 2
+      ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(target.x, target.y); ctx.stroke()
+      // Inner core
+      ctx.strokeStyle = tower.type.color
+      ctx.lineWidth = 1 + ramp * 2
+      ctx.stroke()
+      // Bright impact dot
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(target.x - 2, target.y - 2, 4, 4)
+    }
+
+    // CHAIN: render fading lightning trails
+    if (state.chainTraces) {
+      for (const tr of state.chainTraces) {
+        const alpha = tr.life / tr.maxLife
+        ctx.strokeStyle = tr.color + Math.floor(alpha * 255).toString(16).padStart(2, '0')
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        const pts = tr.trace
+        for (let i = 0; i < pts.length - 1; i++) {
+          const a = pts[i], b = pts[i + 1]
+          // Jagged segments for lightning feel
+          const midX = (a.x + b.x) / 2 + (Math.sin(now / 30 + i) * 4)
+          const midY = (a.y + b.y) / 2 + (Math.cos(now / 35 + i) * 4)
+          ctx.moveTo(a.x, a.y)
+          ctx.lineTo(midX, midY)
+          ctx.lineTo(b.x, b.y)
+        }
+        ctx.stroke()
+        // Bright core
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
     }
 
     if (state.particles) state.particles.render(ctx)
@@ -661,6 +727,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                 const affordable = uiState.money >= tower.cost
                 const active = selectedTowerType === tower.id
                 const dt = DAMAGE_TYPE_META[tower.damageType]
+                const shortName = tower.name.replace(/\s*Tower$/i, '')
                 return (
                   <li key={tower.id}>
                     <button
@@ -671,24 +738,21 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                       aria-pressed={active}
                       title={`${tower.name} ($${tower.cost}) — ${dt?.label} damage — hotkey ${idx + 1}`}
                     >
-                      <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
-                      <span className="tower-icon" style={{ background: tower.color }} />
-                      {dt && (
-                        <span
-                          className="dmg-badge"
-                          style={{ color: dt.color, borderColor: dt.color }}
-                          title={`${dt.label} damage`}
-                        >
-                          <DamageIcon type={tower.damageType} size={11} title={dt.label} />
-                        </span>
-                      )}
-                      <span className="tower-info">
-                        <span className="tower-name">{tower.name}</span>
-                        <span className="tower-cost">${tower.cost}</span>
-                        <span className="tower-stats">
-                          DMG {tower.damage} · RNG {tower.range} · {(1000 / tower.fireRate).toFixed(1)}/s
-                        </span>
+                      <span className="tower-row-top">
+                        <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
+                        <span className="tower-icon" style={{ background: tower.color }} />
+                        {dt && (
+                          <span
+                            className="dmg-badge"
+                            style={{ color: dt.color, borderColor: dt.color }}
+                            title={`${dt.label} damage`}
+                          >
+                            <DamageIcon type={tower.damageType} size={10} title={dt.label} />
+                          </span>
+                        )}
                       </span>
+                      <span className="tower-name">{shortName}</span>
+                      <span className="tower-cost">${tower.cost}</span>
                     </button>
                   </li>
                 )
@@ -735,7 +799,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           })()}
 
           <div className="hotkeys-hint" aria-hidden="true">
-            <span><kbd>1</kbd>–<kbd>4</kbd> tower</span>
+            <span><kbd>1</kbd>–<kbd>8</kbd> tower</span>
             <span><kbd>Space</kbd> skip / pause</span>
             <span><kbd>P</kbd> pause</span>
             <span><kbd>M</kbd> mute</span>

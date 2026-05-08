@@ -24,7 +24,12 @@ export const DAMAGE_TYPE_META = {
   EXPLOSIVE: { label: 'Explosive', color: '#ff7a3a' }
 }
 
-// Tower types — each tower has a unique damage type
+// Tower types — each tower has a unique damage type and behavior.
+// Behaviors:
+//   PROJECTILE — single-target shot (with optional status effect)
+//   SPLASH     — projectile that detonates in an area on impact
+//   CHAIN      — projectile that bounces between nearby enemies with falloff
+//   BEAM       — continuous laser locked on a target, ramps up damage
 export const TOWER_TYPES = {
   BASIC: {
     id: 'BASIC',
@@ -35,6 +40,7 @@ export const TOWER_TYPES = {
     fireRate: 1000,
     color: '#00ff00',
     damageType: DAMAGE_TYPES.KINETIC,
+    behavior: 'PROJECTILE',
     upgradeCost: 150,
     upgradeDamage: 15,
     upgradeRange: 4
@@ -48,6 +54,7 @@ export const TOWER_TYPES = {
     fireRate: 2000,
     color: '#0088ff',
     damageType: DAMAGE_TYPES.PIERCING,
+    behavior: 'PROJECTILE',
     upgradeCost: 300,
     upgradeDamage: 80,
     upgradeRange: 8
@@ -61,6 +68,7 @@ export const TOWER_TYPES = {
     fireRate: 300,
     color: '#ff00ff',
     damageType: DAMAGE_TYPES.ENERGY,
+    behavior: 'PROJECTILE',
     upgradeCost: 200,
     upgradeDamage: 8,
     upgradeRange: 3
@@ -75,10 +83,77 @@ export const TOWER_TYPES = {
     splashRadius: 1.5,
     color: '#ff8800',
     damageType: DAMAGE_TYPES.EXPLOSIVE,
+    behavior: 'SPLASH',
     upgradeCost: 350,
     upgradeDamage: 35,
     upgradeRange: 4,
     upgradeSplashRadius: 2
+  },
+  FROST: {
+    id: 'FROST',
+    name: 'Frost Tower',
+    cost: 200,
+    damage: 4,
+    range: 3,
+    fireRate: 800,
+    color: '#5ce6ff',
+    damageType: DAMAGE_TYPES.ENERGY,
+    behavior: 'PROJECTILE',
+    // Hits apply a slow debuff: speed * (1 - slowAmount) for slowDuration ms
+    slowAmount: 0.5,
+    slowDuration: 1500,
+    upgradeCost: 280,
+    upgradeDamage: 7,
+    upgradeRange: 4
+  },
+  BURN: {
+    id: 'BURN',
+    name: 'Burn Tower',
+    cost: 220,
+    damage: 6,
+    range: 3,
+    fireRate: 1500,
+    color: '#ff5b3a',
+    damageType: DAMAGE_TYPES.EXPLOSIVE,
+    behavior: 'PROJECTILE',
+    // Applies a DoT that ticks each 250ms and bypasses shields after the initial impact
+    burnDamagePerSecond: 12,
+    burnDuration: 4000,
+    upgradeCost: 320,
+    upgradeDamage: 10,
+    upgradeBurnDamagePerSecond: 22
+  },
+  CHAIN: {
+    id: 'CHAIN',
+    name: 'Chain Tower',
+    cost: 280,
+    damage: 18,
+    range: 3,
+    fireRate: 1100,
+    color: '#ffd24a',
+    damageType: DAMAGE_TYPES.ENERGY,
+    behavior: 'CHAIN',
+    chainBounces: 3,
+    chainFalloff: 0.6,
+    chainRangeTiles: 2,
+    upgradeCost: 400,
+    upgradeDamage: 30,
+    upgradeChainBounces: 4
+  },
+  BEAM: {
+    id: 'BEAM',
+    name: 'Beam Tower',
+    cost: 300,
+    damage: 14,
+    range: 4,
+    fireRate: 0,
+    color: '#d8b4ff',
+    damageType: DAMAGE_TYPES.PIERCING,
+    behavior: 'BEAM',
+    rampDurationMs: 500,
+    upgradeCost: 450,
+    upgradeDamage: 24,
+    upgradeRange: 5
   }
 }
 

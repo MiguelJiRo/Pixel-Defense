@@ -19,7 +19,11 @@ const TOWER_DESCRIPTIONS = {
   BASIC: 'All-rounder. Cheap, balanced, no specialization.',
   SNIPER: 'Long range, slow fire rate, big damage. Best vs Tanks and Bosses.',
   RAPID: 'Tiny damage at very high rate of fire. Excellent vs Fast enemies.',
-  SPLASH: 'Area-of-effect blast. Hits hidden targets and clusters.'
+  SPLASH: 'Area-of-effect blast. Hits clusters and bypasses Phantom evasion.',
+  FROST: 'Slows hit enemies for a few seconds. Counters Speed Boost waves and Phantoms.',
+  BURN: 'Applies a damage-over-time tick. The DoT bypasses shields once it’s burning.',
+  CHAIN: 'Each shot bounces between up to 3 nearby enemies with damage falloff. Great vs Splitters and swarms.',
+  BEAM: 'Continuous laser locked on target — never misses. Ramps up damage. Counters Phantoms.'
 }
 
 function Legend({ onClose }) {
@@ -147,6 +151,8 @@ function Legend({ onClose }) {
               <li><span className="legend-aura inline shield" /> Cyan ring → active shield (extra HP layer).</li>
               <li><span className="legend-aura inline heal">+</span> Pulsing green halo → healer's heal radius.</li>
               <li><span className="legend-aura inline phase" /> Translucent body → phantom; can phase through single-target shots.</li>
+              <li><span className="legend-status-pill slow">slow</span> Cyan tint on enemy → slowed by Frost.</li>
+              <li><span className="legend-status-pill burn">burn</span> Flames above enemy → burning DoT (bypasses shields).</li>
             </ul>
           </section>
         </div>

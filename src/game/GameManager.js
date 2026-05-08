@@ -24,6 +24,7 @@ export class GameManager {
     this.towers = []
     this.enemies = []
     this.projectiles = []
+    this.chainTraces = []
     this.particles = new ParticleSystem()
 
     this.waveActive = false
@@ -330,9 +331,30 @@ export class GameManager {
   }
 
   updateEnemies(deltaTime) {
-    // First pass: tick abilities
+    // First pass: tick abilities + status effects
     for (const enemy of this.enemies) {
       if (enemy.health <= 0) continue
+
+      // Slow status: countdown
+      if (enemy.slowRemaining > 0) {
+        enemy.slowRemaining -= deltaTime
+        if (enemy.slowRemaining <= 0) {
+          enemy.slowRemaining = 0
+          enemy.slowMultiplier = 1
+        }
+      }
+
+      // Burn DoT: ticks roughly 4 times per second, ignores shield (it's already inside)
+      if (enemy.burnRemaining > 0) {
+        enemy.burnRemaining -= deltaTime
+        enemy.burnTickAcc = (enemy.burnTickAcc || 0) + deltaTime
+        while (enemy.burnTickAcc >= 250 && enemy.health > 0) {
+          enemy.burnTickAcc -= 250
+          const tickDmg = enemy.burnDamagePerSecond * 0.25
+          enemy.health -= tickDmg
+        }
+      }
+
       const ability = enemy.type.ability
       if (!ability) continue
 
@@ -369,7 +391,8 @@ export class GameManager {
         const dx = targetX - enemy.x
         const dy = targetY - enemy.y
         const distance = Math.sqrt(dx * dx + dy * dy)
-        const step = enemy.speed * deltaTime / 16
+        const speedMul = enemy.slowMultiplier || 1
+        const step = enemy.speed * speedMul * deltaTime / 16
 
         if (distance < step) {
           enemy.pathIndex++
@@ -385,7 +408,8 @@ export class GameManager {
         const dx = targetX - enemy.x
         const dy = targetY - enemy.y
         const distance = Math.sqrt(dx * dx + dy * dy)
-        const step = enemy.speed * deltaTime / 16
+        const speedMul = enemy.slowMultiplier || 1
+        const step = enemy.speed * speedMul * deltaTime / 16
 
         if (distance < 5) {
           this.health--
@@ -447,49 +471,147 @@ export class GameManager {
     }
   }
 
-  updateTowers() {
-    const currentTime = this.gameTime
+  findBestEnemyInRange(tower) {
+    const towerX = tower.x * GRID_SIZE + GRID_SIZE / 2
+    const towerY = tower.y * GRID_SIZE + GRID_SIZE / 2
+    const rangePx = tower.range * GRID_SIZE
 
-    for (const tower of this.towers) {
-      if (currentTime - tower.lastFire < tower.fireRate) continue
+    let bestEnemy = null
+    let bestProgress = -1
+    for (const enemy of this.enemies) {
+      if (enemy.health <= 0) continue
+      const dx = enemy.x - towerX
+      const dy = enemy.y - towerY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (distance > rangePx) continue
+      const progress = enemy.pathIndex + (1 - distance / rangePx) * 0.001
+      if (progress > bestProgress) {
+        bestProgress = progress
+        bestEnemy = enemy
+      }
+    }
+    return bestEnemy
+  }
 
-      const towerX = tower.x * GRID_SIZE + GRID_SIZE / 2
-      const towerY = tower.y * GRID_SIZE + GRID_SIZE / 2
-      const rangePx = tower.range * GRID_SIZE
+  tickBeamTower(tower, deltaTime) {
+    const towerX = tower.x * GRID_SIZE + GRID_SIZE / 2
+    const towerY = tower.y * GRID_SIZE + GRID_SIZE / 2
+    const rangePx = tower.range * GRID_SIZE
 
-      let bestEnemy = null
-      let bestProgress = -1
+    if (tower.beamTarget) {
+      const t = tower.beamTarget
+      const dx = t.x - towerX
+      const dy = t.y - towerY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (t.health <= 0 || dist > rangePx) {
+        tower.beamTarget = null
+        tower.beamLocked = 0
+      }
+    }
+    if (!tower.beamTarget) {
+      tower.beamTarget = this.findBestEnemyInRange(tower)
+      tower.beamLocked = 0
+    }
+    if (!tower.beamTarget) return
 
-      for (const enemy of this.enemies) {
-        const dx = enemy.x - towerX
-        const dy = enemy.y - towerY
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        if (distance > rangePx) continue
+    tower.beamLocked = (tower.beamLocked || 0) + deltaTime
+    const ramp = Math.min(1, tower.beamLocked / (tower.type.rampDurationMs || 500))
+    const dmg = tower.damage * ramp * (deltaTime / 1000)
+    this.applyDamage(tower.beamTarget, dmg, tower.type.damageType, false)
+  }
 
-        const progress = enemy.pathIndex + (1 - distance / rangePx) * 0.001
-        if (progress > bestProgress) {
-          bestProgress = progress
-          bestEnemy = enemy
+  fireChainStrike(tower, primary) {
+    const tt = tower.type
+    const fromX = tower.x * GRID_SIZE + GRID_SIZE / 2
+    const fromY = tower.y * GRID_SIZE + GRID_SIZE / 2
+    const trace = [{ x: fromX, y: fromY }]
+    let target = primary
+    let dmg = tower.damage
+    const hitSet = new Set()
+    const maxBounces = tt.chainBounces ?? 3
+    const falloff = tt.chainFalloff ?? 0.5
+    const chainRangePx = (tt.chainRangeTiles ?? 2) * GRID_SIZE
+
+    for (let i = 0; i <= maxBounces; i++) {
+      if (!target || target.health <= 0) break
+      trace.push({ x: target.x, y: target.y })
+      this.applyDamage(target, dmg, tt.damageType, false)
+      hitSet.add(target)
+      dmg *= falloff
+
+      let nextTarget = null
+      let bestDist = chainRangePx
+      for (const e of this.enemies) {
+        if (hitSet.has(e) || e.health <= 0) continue
+        const dx = e.x - target.x
+        const dy = e.y - target.y
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d <= bestDist) {
+          bestDist = d
+          nextTarget = e
         }
       }
+      target = nextTarget
+    }
+    this.chainTraces.push({ trace, color: tt.color, life: 280, maxLife: 280 })
+  }
 
-      if (bestEnemy) {
-        tower.lastFire = currentTime
-        sound.shoot(tower.type.id)
+  updateTowers(deltaTime) {
+    const currentTime = this.gameTime
 
-        this.projectiles.push({
-          x: towerX,
-          y: towerY,
-          targetX: bestEnemy.x,
-          targetY: bestEnemy.y,
-          target: bestEnemy,
-          damage: tower.damage,
-          damageType: tower.type.damageType,
-          speed: 8,
-          color: tower.type.color,
-          splash: tower.type.splashRadius || 0
-        })
+    // Tick chain trace fade-out
+    for (let i = this.chainTraces.length - 1; i >= 0; i--) {
+      this.chainTraces[i].life -= deltaTime
+      if (this.chainTraces[i].life <= 0) this.chainTraces.splice(i, 1)
+    }
+
+    for (const tower of this.towers) {
+      const behavior = tower.type.behavior
+
+      if (behavior === 'BEAM') {
+        this.tickBeamTower(tower, deltaTime)
+        continue
       }
+
+      if (currentTime - tower.lastFire < tower.fireRate) continue
+
+      const bestEnemy = this.findBestEnemyInRange(tower)
+      if (!bestEnemy) continue
+
+      tower.lastFire = currentTime
+      sound.shoot(tower.type.id)
+
+      if (behavior === 'CHAIN') {
+        this.fireChainStrike(tower, bestEnemy)
+        continue
+      }
+
+      // PROJECTILE / SPLASH
+      const towerX = tower.x * GRID_SIZE + GRID_SIZE / 2
+      const towerY = tower.y * GRID_SIZE + GRID_SIZE / 2
+      const tt = tower.type
+
+      const projectile = {
+        x: towerX,
+        y: towerY,
+        targetX: bestEnemy.x,
+        targetY: bestEnemy.y,
+        target: bestEnemy,
+        damage: tower.damage,
+        damageType: tt.damageType,
+        speed: 8,
+        color: tt.color,
+        splash: tt.splashRadius || 0
+      }
+      if (tt.slowAmount) {
+        projectile.slowAmount = tt.slowAmount
+        projectile.slowDuration = tt.slowDuration
+      }
+      if (tt.burnDamagePerSecond) {
+        projectile.burnDamagePerSecond = tt.burnDamagePerSecond
+        projectile.burnDuration = tt.burnDuration
+      }
+      this.projectiles.push(projectile)
     }
   }
 
@@ -512,6 +634,7 @@ export class GameManager {
             const dist = Math.sqrt(edx * edx + edy * edy)
             if (dist <= proj.splash * GRID_SIZE) {
               this.applyDamage(enemy, proj.damage, proj.damageType, true)
+              this.applyStatuses(enemy, proj)
             }
           }
         } else {
@@ -519,6 +642,7 @@ export class GameManager {
           sound.hit()
           if (proj.target && proj.target.health > 0) {
             this.applyDamage(proj.target, proj.damage, proj.damageType, false)
+            this.applyStatuses(proj.target, proj)
           }
         }
 
@@ -527,6 +651,18 @@ export class GameManager {
         proj.x += (dx / distance) * proj.speed
         proj.y += (dy / distance) * proj.speed
       }
+    }
+  }
+
+  applyStatuses(enemy, proj) {
+    if (!enemy || enemy.health <= 0) return
+    if (proj.slowDuration && proj.slowAmount) {
+      enemy.slowMultiplier = 1 - proj.slowAmount
+      enemy.slowRemaining = Math.max(enemy.slowRemaining || 0, proj.slowDuration)
+    }
+    if (proj.burnDuration && proj.burnDamagePerSecond) {
+      enemy.burnDamagePerSecond = Math.max(enemy.burnDamagePerSecond || 0, proj.burnDamagePerSecond)
+      enemy.burnRemaining = Math.max(enemy.burnRemaining || 0, proj.burnDuration)
     }
   }
 
@@ -577,6 +713,7 @@ export class GameManager {
       towers: this.towers,
       enemies: this.enemies,
       projectiles: this.projectiles,
+      chainTraces: this.chainTraces,
       particles: this.particles,
       currentPath: this.currentPath,
       currentEvent: this.currentEvent,
