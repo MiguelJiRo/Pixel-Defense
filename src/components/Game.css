@@ -160,12 +160,17 @@
   flex-shrink: 0;
   background: var(--bg-1);
   border-left: 2px solid var(--line);
-  padding: 10px;
-  overflow-y: auto;
+  padding: 8px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-height: 0;
+}
+
+/* When a tower is selected, the detail panel takes the spot of hotkeys-hint */
+.game-sidebar:has(.tower-detail) .hotkeys-hint {
+  display: none;
 }
 
 .wave-status {
@@ -367,6 +372,31 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dmg-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dmg-badge.inline {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.detail-damage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tower-detail {

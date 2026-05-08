@@ -398,6 +398,7 @@ export class GameManager {
           targetY: bestEnemy.y,
           target: bestEnemy,
           damage: tower.damage,
+          damageType: tower.type.damageType,
           speed: 8,
           color: tower.type.color,
           splash: tower.type.splashRadius || 0
@@ -424,14 +425,14 @@ export class GameManager {
             const edy = enemy.y - proj.targetY
             const dist = Math.sqrt(edx * edx + edy * edy)
             if (dist <= proj.splash * GRID_SIZE) {
-              enemy.health -= proj.damage
+              this.applyDamage(enemy, proj.damage, proj.damageType)
             }
           }
         } else {
           this.particles.createHitEffect(proj.targetX, proj.targetY)
           sound.hit()
           if (proj.target && proj.target.health > 0) {
-            proj.target.health -= proj.damage
+            this.applyDamage(proj.target, proj.damage, proj.damageType)
           }
         }
 
@@ -441,6 +442,13 @@ export class GameManager {
         proj.y += (dy / distance) * proj.speed
       }
     }
+  }
+
+  applyDamage(enemy, baseDamage, damageType) {
+    if (!enemy || enemy.health <= 0) return
+    const resist = enemy.type.resistances?.[damageType]
+    const multiplier = damageType === 'TRUE' ? 1 : (resist ?? 1)
+    enemy.health -= baseDamage * multiplier
   }
 
   destroy() {

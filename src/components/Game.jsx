@@ -3,8 +3,9 @@ import { GameManager } from '../game/GameManager'
 import { sound } from '../game/SoundManager'
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, GRID_SIZE, GRID_WIDTH, GRID_HEIGHT,
-  TOWER_TYPES, INITIAL_HEALTH, INITIAL_MONEY
+  TOWER_TYPES, INITIAL_HEALTH, INITIAL_MONEY, DAMAGE_TYPE_META
 } from '../game/constants'
+import DamageIcon from './DamageIcon'
 import './Game.css'
 
 const TOWER_HOTKEYS = ['1', '2', '3', '4']
@@ -260,6 +261,10 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       ctx.fillText(tower.level, x, y)
     }
 
+    const previewType = selectedTowerTypeRef.current
+      ? TOWER_TYPES[selectedTowerTypeRef.current]?.damageType
+      : (selectedTowerRef.current?.type?.damageType || null)
+
     for (const enemy of state.enemies) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
       ctx.fillRect(enemy.x - enemy.type.size / 2 + 2, enemy.y - enemy.type.size / 2 + 2, enemy.type.size, enemy.type.size)
@@ -279,6 +284,25 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
       ctx.fillStyle = healthPercent > 0.5 ? '#00ff88' : healthPercent > 0.25 ? '#ffcc00' : '#ff3355'
       ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 6, healthBarWidth * healthPercent, healthBarHeight)
+
+      // Resistance / vulnerability indicator vs the selected damage type
+      if (previewType && enemy.type.resistances) {
+        const resist = enemy.type.resistances[previewType]
+        if (resist != null && resist !== 1) {
+          const isResist = resist < 1
+          const color = isResist ? '#7a8bff' : '#ffe066'
+          ctx.font = 'bold 9px "Press Start 2P", monospace'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          const txt = isResist ? '▼' : '▲'
+          const ix = enemy.x + enemy.type.size / 2 + 4
+          const iy = enemy.y - enemy.type.size / 2 - 1
+          ctx.fillStyle = '#000'
+          ctx.fillText(txt, ix + 1, iy + 1)
+          ctx.fillStyle = color
+          ctx.fillText(txt, ix, iy)
+        }
+      }
     }
 
     for (const proj of state.projectiles) {
@@ -510,6 +534,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
               {TOWER_TYPE_LIST.map((tower, idx) => {
                 const affordable = uiState.money >= tower.cost
                 const active = selectedTowerType === tower.id
+                const dt = DAMAGE_TYPE_META[tower.damageType]
                 return (
                   <li key={tower.id}>
                     <button
@@ -518,10 +543,19 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                       onClick={() => setSelectedTowerType(active ? null : tower.id)}
                       disabled={!affordable}
                       aria-pressed={active}
-                      title={`${tower.name} ($${tower.cost}) — hotkey ${idx + 1}`}
+                      title={`${tower.name} ($${tower.cost}) — ${dt?.label} damage — hotkey ${idx + 1}`}
                     >
                       <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
                       <span className="tower-icon" style={{ background: tower.color }} />
+                      {dt && (
+                        <span
+                          className="dmg-badge"
+                          style={{ color: dt.color, borderColor: dt.color }}
+                          title={`${dt.label} damage`}
+                        >
+                          <DamageIcon type={tower.damageType} size={11} title={dt.label} />
+                        </span>
+                      )}
                       <span className="tower-info">
                         <span className="tower-name">{tower.name}</span>
                         <span className="tower-cost">${tower.cost}</span>
@@ -536,12 +570,24 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             </ul>
           </section>
 
-          {selectedTower && (
+          {selectedTower && (() => {
+            const dt = DAMAGE_TYPE_META[selectedTower.type.damageType]
+            return (
             <section className="tower-detail" aria-label="Selected tower details">
               <h3>{selectedTower.type.name}</h3>
               <div className="detail-content">
                 <div className="detail-row"><span>Level</span><span>{selectedTower.level}/3</span></div>
-                <div className="detail-row"><span>Damage</span><span>{selectedTower.damage}</span></div>
+                <div className="detail-row">
+                  <span>Damage</span>
+                  <span className="detail-damage">
+                    {selectedTower.damage}
+                    {dt && (
+                      <span className="dmg-badge inline" style={{ color: dt.color, borderColor: dt.color }} title={dt.label}>
+                        <DamageIcon type={selectedTower.type.damageType} size={10} title={dt.label} />
+                      </span>
+                    )}
+                  </span>
+                </div>
                 <div className="detail-row"><span>Range</span><span>{selectedTower.range}</span></div>
                 <div className="actions">
                   {selectedTower.level < 3 && (
@@ -559,7 +605,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                 </div>
               </div>
             </section>
-          )}
+            )
+          })()}
 
           <div className="hotkeys-hint" aria-hidden="true">
             <span><kbd>1</kbd>–<kbd>4</kbd> tower</span>
