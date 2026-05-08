@@ -24,21 +24,42 @@ Place towers, survive randomized waves, master random events, and chase the high
 
 ## Towers
 
-| Tower   | Cost | Damage | Range | Speed       | Notes                          |
-| ------- | ---- | ------ | ----- | ----------- | ------------------------------ |
-| Basic   | $100 | 10     | 3     | Medium      | Balanced general defense       |
-| Sniper  | $200 | 50     | 6     | Slow        | High damage, long range        |
-| Rapid   | $150 | 5      | 2.5   | Very fast   | Many shots per second          |
-| Splash  | $250 | 20     | 3     | Medium      | Area-of-effect damage          |
+Every tower deals a unique damage type. The damage type matters: enemies have resistances and vulnerabilities to each one.
+
+| Tower   | Cost | Damage | Range | Speed     | Damage type   | Notes                            |
+| ------- | ---- | ------ | ----- | --------- | ------------- | -------------------------------- |
+| Basic   | $100 | 10     | 3     | Medium    | ● Kinetic     | All-rounder, no specialization   |
+| Sniper  | $200 | 50     | 6     | Slow      | → Piercing    | Punches through armor            |
+| Rapid   | $150 | 5      | 2.5   | Very fast | ⚡ Energy     | Bypasses physical defenses       |
+| Splash  | $250 | 20     | 3     | Medium    | ✺ Explosive  | Area damage, devastates clusters |
 
 Each tower can be upgraded up to **level 3** during preparation phases. Selling a tower refunds **70%** of its build cost.
 
 ## Enemies
 
-- **Basic** — balanced HP and speed.
-- **Fast** — low HP, very high speed.
-- **Tank** — slow but heavily armored.
-- **Boss** — appears every 5 rounds and during Boss Rush events.
+- **Basic** — neutral target dummy, no resistances.
+- **Fast** — low HP, very high speed; small and dodgy (resists Kinetic / Piercing, weak to Energy / Explosive).
+- **Tank** — slow but heavily armored (resists Kinetic / Explosive, weak to Piercing / Energy).
+- **Boss** — appears every 5 rounds and during Boss Rush events (weak to Piercing, resists Energy).
+
+## Damage Types & Resistances
+
+The colored badge on every tower tells you what type of damage it deals. While a tower (or its preview) is selected, every enemy on the board shows a small marker:
+
+- **▲ yellow** — vulnerable to that damage type (extra damage)
+- **▼ blue** — resistant to that damage type (reduced damage)
+- nothing — neutral
+
+Mixing tower types is now mandatory: a Sniper-only run will struggle against Fast swarms, and a Splash-only run will bounce off Tanks.
+
+| Enemy / Type | ● Kinetic | → Piercing | ⚡ Energy | ✺ Explosive |
+| ------------ | --------- | ---------- | --------- | ----------- |
+| Basic        | 1.0       | 1.0        | 1.0       | 1.0         |
+| Fast         | 0.7       | 0.6        | **1.4**   | **1.3**     |
+| Tank         | **0.5**   | **1.4**    | 1.2       | **0.6**     |
+| Boss         | 0.85      | **1.3**    | 0.8       | 0.9         |
+
+> Values are damage multipliers. **Bold** marks the meaningful resistance / vulnerability.
 
 ---
 

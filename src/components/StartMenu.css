@@ -1,51 +1,49 @@
 .start-menu {
-  background:
-    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
   border: 3px solid var(--line-strong);
-  padding: clamp(18px, 3vw, 36px) clamp(16px, 3vw, 32px) clamp(14px, 2.5vw, 28px);
+  padding: clamp(10px, 2vh, 24px) clamp(14px, 3vw, 28px);
   text-align: center;
-  width: min(560px, calc(100% - 32px));
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+  width: min(560px, calc(100% - 24px));
+  max-height: calc(100dvh - 16px);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow:
     0 0 0 4px var(--bg-0),
     0 0 60px rgba(0, 255, 136, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.start-menu::-webkit-scrollbar { width: 8px; }
-.start-menu::-webkit-scrollbar-track { background: transparent; }
-.start-menu::-webkit-scrollbar-thumb { background: var(--line); }
-
 .start-menu::before,
 .start-menu::after {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   background: var(--accent);
   pointer-events: none;
 }
 
-.start-menu::before { top: -8px; left: -8px; }
-.start-menu::after  { bottom: -8px; right: -8px; }
+.start-menu::before { top: -7px; left: -7px; }
+.start-menu::after  { bottom: -7px; right: -7px; }
 
 .audio-toggle {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 36px;
-  height: 36px;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-2);
   border: 2px solid var(--line);
   color: var(--text);
-  font-size: 16px;
+  font-size: 13px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  z-index: 1;
 }
 
 .audio-toggle:hover {
@@ -54,16 +52,16 @@
 }
 
 .title-block {
-  margin-bottom: clamp(14px, 2.5vw, 28px);
+  margin-bottom: clamp(6px, 1.4vh, 14px);
 }
 
 .logo {
   display: block;
-  margin: 0 auto 12px;
-  width: clamp(72px, 14vh, 132px);
+  margin: 0 auto 6px;
+  width: clamp(48px, 9vh, 96px);
   height: auto;
   image-rendering: auto;
-  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(0, 255, 136, 0.18));
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 16px rgba(0, 255, 136, 0.18));
   animation: bob 3.2s ease-in-out infinite;
 }
 
@@ -74,88 +72,74 @@
 
 .title-pre {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 3px;
   color: var(--text-dim);
   text-transform: uppercase;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 
 .title {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
   font-family: var(--font-display);
-  font-size: clamp(20px, 3.8vw, 32px);
+  font-size: clamp(15px, 3vw, 26px);
   color: var(--accent);
-  text-shadow:
-    3px 3px 0 #000,
-    0 0 24px rgba(0, 255, 136, 0.4);
+  text-shadow: 3px 3px 0 #000, 0 0 24px rgba(0, 255, 136, 0.4);
   letter-spacing: 2px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   line-height: 1.2;
 }
 
-.title-pixel {
-  color: var(--accent-dim);
-  letter-spacing: -2px;
-  font-size: 0.75em;
-  animation: blink 1.4s steps(2) infinite;
-}
-
-@keyframes blink {
-  50% { opacity: 0.35; }
-}
-
 .subtitle {
-  font-size: 18px;
+  font-size: clamp(12px, 1.5vh, 15px);
   color: var(--text-dim);
   max-width: 380px;
   margin: 0 auto;
+  line-height: 1.2;
 }
 
 .config-grid {
   display: grid;
-  gap: clamp(14px, 2.2vh, 22px);
-  margin-bottom: clamp(14px, 2.2vh, 24px);
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(8px, 1.5vh, 16px) clamp(10px, 2vw, 20px);
+  margin-bottom: clamp(8px, 1.4vh, 14px);
 }
 
 .config-section {
   border: none;
   padding: 0;
   text-align: center;
+  min-width: 0;
 }
 
 .config-section legend {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 9px;
   letter-spacing: 2px;
   color: var(--text);
   text-transform: uppercase;
-  margin-bottom: 12px;
-  padding: 0 8px;
+  margin-bottom: 6px;
+  padding: 0 6px;
   display: block;
   width: 100%;
 }
 
 .button-group {
   display: flex;
-  gap: 8px;
+  gap: 5px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .menu-button {
   font-family: var(--font-display);
-  font-size: 11px;
-  padding: 12px 16px;
+  font-size: 9px;
+  padding: 7px 10px;
   background: var(--bg-2);
   color: var(--text-dim);
   border: 2px solid var(--line);
   cursor: pointer;
   transition: all 0.15s ease;
-  min-width: 80px;
+  min-width: 56px;
   letter-spacing: 1px;
 }
 
@@ -163,36 +147,36 @@
   background: var(--bg-3);
   border-color: var(--line-strong);
   color: var(--text);
-  transform: translateY(-1px);
 }
 
 .menu-button.active {
   background: var(--accent);
   color: #001b0e;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px #000, 0 0 16px rgba(0, 255, 136, 0.5);
+  box-shadow: 0 0 0 2px #000, 0 0 12px rgba(0, 255, 136, 0.4);
 }
 
 .hint {
-  font-size: 16px;
+  font-size: 12px;
   color: var(--text-dim);
-  margin-top: 10px;
-  min-height: 1.2em;
+  margin-top: 4px;
+  min-height: 1em;
+  line-height: 1.2;
 }
 
 .custom-input {
   display: block;
-  margin-top: 12px;
+  margin-top: 6px;
 }
 
 .custom-input input {
   font-family: var(--font-body);
-  font-size: 18px;
-  padding: 10px 14px;
+  font-size: 14px;
+  padding: 5px 10px;
   background: var(--bg-2);
   color: var(--text);
   border: 2px solid var(--line);
-  width: 220px;
+  width: min(180px, 100%);
   text-align: center;
   letter-spacing: 1px;
 }
@@ -223,18 +207,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 6px 12px;
   background: var(--bg-2);
   border: 2px solid var(--line);
-  margin-bottom: clamp(14px, 2.2vh, 22px);
-  font-size: 17px;
+  margin-bottom: clamp(8px, 1.4vh, 14px);
+  font-size: 14px;
 }
 
 .summary-row > div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   text-align: left;
 }
 
@@ -242,7 +226,7 @@
 
 .summary-label {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 7px;
   letter-spacing: 2px;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -251,6 +235,7 @@
 .summary-value {
   color: var(--text);
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .summary-row > div:first-child .summary-value {
@@ -259,13 +244,13 @@
 
 .start-button {
   font-family: var(--font-display);
-  font-size: 16px;
-  padding: clamp(12px, 2vh, 18px) 36px;
+  font-size: clamp(12px, 1.6vh, 15px);
+  padding: clamp(8px, 1.4vh, 14px) 28px;
   background: var(--accent);
   color: #001b0e;
   border: 3px solid var(--accent);
   cursor: pointer;
-  margin-top: 4px;
+  margin-top: 2px;
   letter-spacing: 2px;
   transition: transform 0.15s ease, background 0.15s ease;
   position: relative;
@@ -285,13 +270,13 @@
 }
 
 .credits {
-  margin-top: clamp(14px, 2.5vh, 28px);
-  font-size: 15px;
+  margin-top: clamp(6px, 1.2vh, 14px);
+  font-size: 12px;
   color: var(--text-dim);
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -307,13 +292,32 @@
   border-bottom-color: var(--accent-dim);
 }
 
-@media (max-width: 420px) {
-  .start-menu {
-    padding: 28px 18px 22px;
-    border-width: 2px;
-  }
-  .summary-row { flex-direction: column; gap: 10px; }
-  .summary-row > div:last-child { text-align: left; }
-  .menu-button { font-size: 10px; padding: 10px 12px; min-width: 64px; }
-  .start-button { font-size: 13px; padding: 15px 22px; }
+/* Single column on very narrow widths */
+@media (max-width: 460px) {
+  .config-grid { grid-template-columns: 1fr; }
+}
+
+/* Aggressive shrink for short windows */
+@media (max-height: 560px) {
+  .logo { width: clamp(40px, 7vh, 60px); margin-bottom: 4px; animation: none; }
+  .title-pre { display: none; }
+  .title { font-size: clamp(13px, 2.4vh, 18px); margin-bottom: 2px; }
+  .subtitle { display: none; }
+  .hint { display: none; }
+  .credits { font-size: 11px; gap: 4px; }
+  .start-menu::before, .start-menu::after { display: none; }
+}
+
+@media (max-height: 460px) {
+  .start-menu { padding: 8px 14px; }
+  .summary-row { display: none; }
+  .menu-button { padding: 5px 8px; font-size: 8px; min-width: 48px; }
+  .config-section legend { font-size: 8px; margin-bottom: 3px; }
+  .button-group { gap: 4px; }
+  .custom-input { margin-top: 3px; }
+  .custom-input input { font-size: 12px; padding: 4px 8px; }
+}
+
+@media (max-width: 380px) {
+  .start-menu { padding: 10px 12px; border-width: 2px; }
 }

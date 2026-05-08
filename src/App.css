@@ -9,12 +9,6 @@
   overflow: hidden;
 }
 
-.app:has(.start-menu),
-.app:has(.end-screen) {
-  overflow: auto;
-  padding: 16px;
-}
-
 .end-screen {
   position: fixed;
   inset: 0;
