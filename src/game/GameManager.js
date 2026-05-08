@@ -113,29 +113,7 @@ export class GameManager {
     this.enemiesToSpawn = enemyCount
 
     for (let i = 0; i < enemyCount; i++) {
-      const rand = Math.random()
-      let enemyType
-
-      if (waveConfig.swarmMode) {
-        enemyType = rand < 0.7 ? ENEMY_TYPES.FAST : ENEMY_TYPES.BASIC
-      } else if (waveConfig.airRaid) {
-        enemyType = ENEMY_TYPES.FAST
-      } else if (this.currentRound < 5) {
-        enemyType = rand < 0.8 ? ENEMY_TYPES.BASIC : ENEMY_TYPES.FAST
-      } else if (this.currentRound < 10) {
-        if (rand < 0.5) enemyType = ENEMY_TYPES.BASIC
-        else if (rand < 0.8) enemyType = ENEMY_TYPES.FAST
-        else enemyType = ENEMY_TYPES.TANK
-      } else {
-        if (rand < 0.4) enemyType = ENEMY_TYPES.BASIC
-        else if (rand < 0.6) enemyType = ENEMY_TYPES.FAST
-        else if (rand < 0.9) enemyType = ENEMY_TYPES.TANK
-        else enemyType = ENEMY_TYPES.BOSS
-      }
-
-      if (this.currentRound % 5 === 0 && i === enemyCount - 1 && !waveConfig.swarmMode) {
-        enemyType = ENEMY_TYPES.BOSS
-      }
+      const enemyType = this.pickEnemyForWave(waveConfig, i, enemyCount)
 
       const spawnDelay = waveConfig.swarmMode ? 300 : 800
 
@@ -147,25 +125,82 @@ export class GameManager {
     }
   }
 
-  spawnEnemy(enemyType, waveConfig = {}) {
+  pickEnemyForWave(waveConfig, index, totalCount) {
+    const round = this.currentRound
+    const rand = Math.random()
+
+    if (waveConfig.swarmMode) {
+      return rand < 0.7 ? ENEMY_TYPES.FAST : ENEMY_TYPES.BASIC
+    }
+    if (waveConfig.airRaid) {
+      return ENEMY_TYPES.FAST
+    }
+
+    // Force a Boss as the last enemy of every 5th round
+    if (round % 5 === 0 && index === totalCount - 1) {
+      return ENEMY_TYPES.BOSS
+    }
+
+    // Build a weighted pool that introduces new enemies progressively
+    const pool = [
+      [ENEMY_TYPES.BASIC, 1.0],
+      [ENEMY_TYPES.FAST, round >= 2 ? 0.8 : 0.3]
+    ]
+    if (round >= 4) pool.push([ENEMY_TYPES.SHIELDED, 0.45])
+    if (round >= 5) pool.push([ENEMY_TYPES.TANK, 0.5])
+    if (round >= 6) pool.push([ENEMY_TYPES.HEALER, 0.25])
+    if (round >= 8) pool.push([ENEMY_TYPES.SPLITTER, 0.35])
+    if (round >= 10) pool.push([ENEMY_TYPES.PHANTOM, 0.4])
+    if (round >= 12) pool.push([ENEMY_TYPES.BOSS, 0.15])
+
+    const total = pool.reduce((s, [, w]) => s + w, 0)
+    let r = rand * total
+    for (const [type, w] of pool) {
+      r -= w
+      if (r <= 0) return type
+    }
+    return pool[0][0]
+  }
+
+  spawnEnemy(enemyType, waveConfig = {}, overrides = {}) {
     const startPos = this.currentPath[0]
 
     const healthMultiplier = waveConfig.healthMultiplier || 1
     const speedMultiplier = waveConfig.speedMultiplier || 1
     const rewardMultiplier = waveConfig.rewardMultiplier || 1
 
-    const health = enemyType.health * this.config.difficultyMultiplier * healthMultiplier
+    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier
+    const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier
+    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier)
 
-    this.enemies.push({
+    const enemy = {
       type: enemyType,
-      health,
-      maxHealth: health,
-      speed: enemyType.speed * speedMultiplier,
-      x: startPos.x * GRID_SIZE + GRID_SIZE / 2,
-      y: startPos.y * GRID_SIZE + GRID_SIZE / 2,
-      pathIndex: 0,
-      reward: Math.floor(enemyType.reward * rewardMultiplier)
-    })
+      health: baseHealth,
+      maxHealth: baseHealth,
+      speed: baseSpeed,
+      x: (overrides.spawnX ?? startPos.x * GRID_SIZE + GRID_SIZE / 2),
+      y: (overrides.spawnY ?? startPos.y * GRID_SIZE + GRID_SIZE / 2),
+      pathIndex: overrides.pathIndex ?? 0,
+      reward: baseReward
+    }
+
+    // Initialize ability state per enemy
+    const ability = enemyType.ability
+    if (ability) {
+      if (ability.kind === 'SHIELD') {
+        const shieldValue = ability.shield * this.config.difficultyMultiplier * healthMultiplier
+        enemy.shield = shieldValue
+        enemy.maxShield = shieldValue
+      } else if (ability.kind === 'HEAL') {
+        enemy.healCooldown = ability.cooldownMs
+        enemy.healPulse = 0
+      } else if (ability.kind === 'PHASE') {
+        enemy.phaseTimer = 0
+      }
+    }
+
+    this.enemies.push(enemy)
+    return enemy
   }
 
   placeTower(gridX, gridY, towerType) {
@@ -295,6 +330,34 @@ export class GameManager {
   }
 
   updateEnemies(deltaTime) {
+    // First pass: tick abilities
+    for (const enemy of this.enemies) {
+      if (enemy.health <= 0) continue
+      const ability = enemy.type.ability
+      if (!ability) continue
+
+      if (ability.kind === 'HEAL') {
+        enemy.healCooldown -= deltaTime
+        enemy.healPulse = (enemy.healPulse + deltaTime) % 1200
+        if (enemy.healCooldown <= 0) {
+          enemy.healCooldown = ability.cooldownMs
+          const radiusPx = ability.radiusTiles * GRID_SIZE
+          const healAmount = ability.healPerSecond * (ability.cooldownMs / 1000)
+          for (const ally of this.enemies) {
+            if (ally === enemy || ally.health <= 0) continue
+            const dx = ally.x - enemy.x
+            const dy = ally.y - enemy.y
+            if (dx * dx + dy * dy <= radiusPx * radiusPx) {
+              ally.health = Math.min(ally.maxHealth, ally.health + healAmount)
+              this.particles.createHitEffect(ally.x, ally.y - 6)
+            }
+          }
+        }
+      } else if (ability.kind === 'PHASE') {
+        if (enemy.phaseTimer > 0) enemy.phaseTimer = Math.max(0, enemy.phaseTimer - deltaTime)
+      }
+    }
+
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i]
 
@@ -338,6 +401,7 @@ export class GameManager {
             this.projectiles = []
             sound.gameOver()
             this.onGameOver?.()
+            return
           }
           continue
         }
@@ -355,6 +419,28 @@ export class GameManager {
         this.particles.createExplosion(enemy.x, enemy.y, enemy.type.color, 8)
         this.particles.createMoneyEffect(enemy.x, enemy.y, enemy.reward)
         sound.enemyDeath()
+
+        // Splitter: spawn small offspring along the path before removing the parent
+        const ability = enemy.type.ability
+        if (ability?.kind === 'SPLIT' && !enemy.isChild) {
+          const child = ability.child
+          for (let s = 0; s < ability.count; s++) {
+            const offset = (s - (ability.count - 1) / 2) * 14
+            const spawned = this.spawnEnemy(enemy.type, {}, {
+              health: child.health,
+              speed: child.speed,
+              reward: child.reward,
+              spawnX: enemy.x,
+              spawnY: enemy.y + offset,
+              pathIndex: Math.max(0, enemy.pathIndex - 1)
+            })
+            // Mark the spawned enemy as a child to prevent infinite splits
+            if (spawned) {
+              spawned.isChild = true
+              spawned.childOverride = child
+            }
+          }
+        }
 
         this.enemies.splice(i, 1)
       }
@@ -425,14 +511,14 @@ export class GameManager {
             const edy = enemy.y - proj.targetY
             const dist = Math.sqrt(edx * edx + edy * edy)
             if (dist <= proj.splash * GRID_SIZE) {
-              this.applyDamage(enemy, proj.damage, proj.damageType)
+              this.applyDamage(enemy, proj.damage, proj.damageType, true)
             }
           }
         } else {
           this.particles.createHitEffect(proj.targetX, proj.targetY)
           sound.hit()
           if (proj.target && proj.target.health > 0) {
-            this.applyDamage(proj.target, proj.damage, proj.damageType)
+            this.applyDamage(proj.target, proj.damage, proj.damageType, false)
           }
         }
 
@@ -444,11 +530,30 @@ export class GameManager {
     }
   }
 
-  applyDamage(enemy, baseDamage, damageType) {
+  applyDamage(enemy, baseDamage, damageType, isAreaHit = false) {
     if (!enemy || enemy.health <= 0) return
     const resist = enemy.type.resistances?.[damageType]
     const multiplier = damageType === 'TRUE' ? 1 : (resist ?? 1)
-    enemy.health -= baseDamage * multiplier
+    let dmg = baseDamage * multiplier
+
+    // Phantom: single-target shots have a chance to phase through
+    const ability = enemy.type.ability
+    if (!isAreaHit && ability?.kind === 'PHASE') {
+      if (Math.random() < ability.evadeChance) {
+        // Trigger short shimmer (visual cue handled by render via timer)
+        enemy.phaseTimer = 250
+        return
+      }
+    }
+
+    // Shielded: damage hits the shield first
+    if (enemy.shield > 0) {
+      const absorbed = Math.min(enemy.shield, dmg)
+      enemy.shield -= absorbed
+      dmg -= absorbed
+    }
+
+    if (dmg > 0) enemy.health -= dmg
   }
 
   destroy() {

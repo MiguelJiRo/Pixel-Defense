@@ -124,6 +124,50 @@ export const ENEMY_TYPES = {
     size: 20,
     // Boss has a weak point exploitable by piercing; resists energy magic
     resistances: { KINETIC: 0.85, PIERCING: 1.3, ENERGY: 0.8, EXPLOSIVE: 0.9 }
+  },
+  SHIELDED: {
+    id: 'SHIELDED',
+    health: 60,
+    speed: 1.2,
+    reward: 25,
+    color: '#74e3ff',
+    size: 13,
+    // Energy shield absorbs the first hits — break it with Piercing or Energy
+    resistances: { KINETIC: 0.4, PIERCING: 1.5, ENERGY: 1.4, EXPLOSIVE: 0.4 },
+    ability: { kind: 'SHIELD', shield: 60 }
+  },
+  HEALER: {
+    id: 'HEALER',
+    health: 80,
+    speed: 0.9,
+    reward: 35,
+    color: '#5cf07a',
+    size: 14,
+    // Neutral durability — kill priority because it heals nearby enemies
+    resistances: { KINETIC: 1.0, PIERCING: 1.0, ENERGY: 1.0, EXPLOSIVE: 1.0 },
+    ability: { kind: 'HEAL', radiusTiles: 2.2, healPerSecond: 8, cooldownMs: 1000 }
+  },
+  SPLITTER: {
+    id: 'SPLITTER',
+    health: 110,
+    speed: 1.0,
+    reward: 30,
+    color: '#ff6ad5',
+    size: 15,
+    // Hard to chew without explosives. On death, spawns 2 minis along the path.
+    resistances: { KINETIC: 0.85, PIERCING: 1.0, ENERGY: 1.1, EXPLOSIVE: 1.4 },
+    ability: { kind: 'SPLIT', count: 2, child: { health: 25, speed: 1.8, reward: 8, color: '#ff9be0', size: 9 } }
+  },
+  PHANTOM: {
+    id: 'PHANTOM',
+    health: 50,
+    speed: 1.4,
+    reward: 40,
+    color: '#c9b3ff',
+    size: 12,
+    // Half-incorporeal: dodges single-target shots half the time, area damage works
+    resistances: { KINETIC: 0.6, PIERCING: 0.6, ENERGY: 1.0, EXPLOSIVE: 1.3 },
+    ability: { kind: 'PHASE', evadeChance: 0.5 }
   }
 }
 

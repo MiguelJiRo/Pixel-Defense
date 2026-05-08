@@ -6,6 +6,7 @@ import {
   TOWER_TYPES, INITIAL_HEALTH, INITIAL_MONEY, DAMAGE_TYPE_META
 } from '../game/constants'
 import DamageIcon from './DamageIcon'
+import Legend from './Legend'
 import './Game.css'
 
 const TOWER_HOTKEYS = ['1', '2', '3', '4']
@@ -40,7 +41,11 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
   const [selectedTowerType, setSelectedTowerType] = useState(null)
   const [selectedTower, setSelectedTower] = useState(null)
   const [audio, setAudio] = useState(sound.getState())
+  const [legendOpen, setLegendOpen] = useState(false)
   const finishedRef = useRef(false)
+  const wasPausedBeforeLegend = useRef(false)
+  const legendOpenRef = useRef(false)
+  const legendActionsRef = useRef({ open: () => {}, close: () => {} })
 
   useEffect(() => { selectedTowerTypeRef.current = selectedTowerType }, [selectedTowerType])
   useEffect(() => { selectedTowerRef.current = selectedTower }, [selectedTower])
@@ -121,8 +126,12 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       if (!game) return
 
       if (e.key === 'Escape') {
-        setSelectedTowerType(null)
-        setSelectedTower(null)
+        if (legendOpenRef.current) {
+          legendActionsRef.current.close()
+        } else {
+          setSelectedTowerType(null)
+          setSelectedTower(null)
+        }
         return
       }
 
@@ -143,6 +152,12 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
       if (e.key.toLowerCase() === 'm') {
         sound.toggleMute()
+        return
+      }
+
+      if (e.key.toLowerCase() === 'l') {
+        if (legendOpenRef.current) legendActionsRef.current.close()
+        else legendActionsRef.current.open()
         return
       }
 
@@ -265,15 +280,86 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       ? TOWER_TYPES[selectedTowerTypeRef.current]?.damageType
       : (selectedTowerRef.current?.type?.damageType || null)
 
+    const now = performance.now()
+
     for (const enemy of state.enemies) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      const ability = enemy.type.ability
+
+      // === ABILITY AURAS (rendered behind the enemy body) ===
+
+      // Healer aura: pulsing green circle showing heal radius
+      if (ability?.kind === 'HEAL') {
+        const radiusPx = ability.radiusTiles * GRID_SIZE
+        const pulse = 0.5 + 0.5 * Math.sin(now / 300)
+        ctx.fillStyle = `rgba(92, 240, 122, ${0.06 + pulse * 0.06})`
+        ctx.beginPath(); ctx.arc(enemy.x, enemy.y, radiusPx, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = `rgba(92, 240, 122, ${0.35 + pulse * 0.25})`
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+
+      // Phantom: skip body partially, draw with transparency
+      const phantomAlpha = ability?.kind === 'PHASE'
+        ? (enemy.phaseTimer > 0 ? 0.25 : 0.55 + 0.15 * Math.sin(now / 200))
+        : 1
+
+      // Body shadow
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.4 * phantomAlpha})`
       ctx.fillRect(enemy.x - enemy.type.size / 2 + 2, enemy.y - enemy.type.size / 2 + 2, enemy.type.size, enemy.type.size)
 
+      // Body
+      ctx.globalAlpha = phantomAlpha
       ctx.fillStyle = enemy.type.color
       ctx.fillRect(enemy.x - enemy.type.size / 2, enemy.y - enemy.type.size / 2, enemy.type.size, enemy.type.size)
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
       ctx.fillRect(enemy.x - enemy.type.size / 2 + 2, enemy.y - enemy.type.size / 2 + 2, enemy.type.size - 4, 2)
+
+      // === ABILITY MARKERS ON THE BODY ===
+
+      // Healer: white "+" cross
+      if (ability?.kind === 'HEAL') {
+        ctx.fillStyle = '#ffffff'
+        const cs = enemy.type.size - 6
+        ctx.fillRect(enemy.x - 1, enemy.y - cs / 2, 2, cs)
+        ctx.fillRect(enemy.x - cs / 2, enemy.y - 1, cs, 2)
+      }
+
+      // Splitter: 4 small dots indicating split potential
+      if (ability?.kind === 'SPLIT' && !enemy.isChild) {
+        ctx.fillStyle = '#ffffff'
+        const off = enemy.type.size / 2 - 3
+        ctx.fillRect(enemy.x - off - 1, enemy.y - off - 1, 2, 2)
+        ctx.fillRect(enemy.x + off - 1, enemy.y - off - 1, 2, 2)
+        ctx.fillRect(enemy.x - off - 1, enemy.y + off - 1, 2, 2)
+        ctx.fillRect(enemy.x + off - 1, enemy.y + off - 1, 2, 2)
+      }
+      ctx.globalAlpha = 1
+
+      // Shielded: outer ring whose thickness reflects current shield
+      if (ability?.kind === 'SHIELD' && enemy.shield > 0) {
+        const shieldPct = enemy.shield / enemy.maxShield
+        const ringRadius = enemy.type.size / 2 + 4
+        const flicker = 0.7 + 0.3 * Math.sin(now / 180)
+        ctx.strokeStyle = `rgba(116, 227, 255, ${flicker})`
+        ctx.lineWidth = 1 + 2 * shieldPct
+        ctx.beginPath(); ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2); ctx.stroke()
+        // inner soft glow
+        ctx.fillStyle = `rgba(116, 227, 255, ${0.05 + 0.05 * shieldPct})`
+        ctx.beginPath(); ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2); ctx.fill()
+      }
+
+      // Phantom: occasional sparkle dots around it
+      if (ability?.kind === 'PHASE') {
+        const sparkleAngle = now / 200
+        for (let s = 0; s < 3; s++) {
+          const a = sparkleAngle + (s * Math.PI * 2) / 3
+          const sx = enemy.x + Math.cos(a) * (enemy.type.size / 2 + 4)
+          const sy = enemy.y + Math.sin(a) * (enemy.type.size / 2 + 4)
+          ctx.fillStyle = `rgba(201, 179, 255, ${0.6 + 0.3 * Math.sin(now / 150 + s)})`
+          ctx.fillRect(sx - 1, sy - 1, 2, 2)
+        }
+      }
 
       const healthBarWidth = enemy.type.size
       const healthBarHeight = 3
@@ -284,6 +370,15 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
       ctx.fillStyle = healthPercent > 0.5 ? '#00ff88' : healthPercent > 0.25 ? '#ffcc00' : '#ff3355'
       ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 6, healthBarWidth * healthPercent, healthBarHeight)
+
+      // Shield bar above the health bar
+      if (ability?.kind === 'SHIELD' && enemy.maxShield > 0) {
+        const sPct = Math.max(0, enemy.shield / enemy.maxShield)
+        ctx.fillStyle = '#000'
+        ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 10, healthBarWidth, healthBarHeight)
+        ctx.fillStyle = '#74e3ff'
+        ctx.fillRect(enemy.x - healthBarWidth / 2, enemy.y - enemy.type.size / 2 - 10, healthBarWidth * sPct, healthBarHeight)
+      }
 
       // Resistance / vulnerability indicator vs the selected damage type
       if (previewType && enemy.type.resistances) {
@@ -412,6 +507,28 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
   const handleSkipPrep = () => { sound.uiClick(); gameRef.current?.skipPrep() }
   const handleMuteToggle = () => sound.toggleMute()
 
+  const openLegend = () => {
+    sound.uiClick()
+    const game = gameRef.current
+    if (game) {
+      wasPausedBeforeLegend.current = game.paused
+      if (!game.paused) game.togglePause()
+    }
+    legendOpenRef.current = true
+    setLegendOpen(true)
+  }
+
+  const closeLegend = () => {
+    legendOpenRef.current = false
+    setLegendOpen(false)
+    const game = gameRef.current
+    if (game && game.paused && !wasPausedBeforeLegend.current) {
+      game.togglePause()
+    }
+  }
+
+  legendActionsRef.current = { open: openLegend, close: closeLegend }
+
   const prepRemaining = Math.max(0, Math.ceil((uiState.wavePrepTime - uiState.waveTimer) / 1000))
   const healthPct = Math.max(0, Math.min(100, (uiState.health / INITIAL_HEALTH) * 100))
 
@@ -441,6 +558,15 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
         </div>
 
         <div className="header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={openLegend}
+            aria-label="Open legend"
+            title="Legend (L)"
+          >
+            ?
+          </button>
           <button
             type="button"
             className="icon-button"
@@ -613,10 +739,13 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             <span><kbd>Space</kbd> skip / pause</span>
             <span><kbd>P</kbd> pause</span>
             <span><kbd>M</kbd> mute</span>
+            <span><kbd>L</kbd> legend</span>
             <span><kbd>Esc</kbd> deselect</span>
           </div>
         </aside>
       </div>
+
+      {legendOpen && <Legend onClose={closeLegend} />}
     </div>
   )
 }
