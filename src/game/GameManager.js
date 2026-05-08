@@ -12,9 +12,15 @@ export class GameManager {
   constructor(config, onGameOver) {
     this.config = config
     this.onGameOver = onGameOver
+    this.modifier = config.modifier || null
+    this.modifierApply = this.modifier?.apply || {}
 
-    this.health = INITIAL_HEALTH
-    this.money = INITIAL_MONEY
+    const startHealthMul = this.modifierApply.startHealthMul ?? 1
+    const startMoneyAdd = this.modifierApply.startMoneyAdd ?? 0
+
+    this.health = Math.max(1, Math.round(INITIAL_HEALTH * startHealthMul))
+    this.maxHealth = this.health
+    this.money = INITIAL_MONEY + startMoneyAdd
     this.currentRound = 0
     this.score = 0
     this.gameOver = false
@@ -65,6 +71,16 @@ export class GameManager {
     if (this.currentRound >= this.config.rounds) {
       this.victory = true
       return
+    }
+
+    // Compound interest: applied at the start of every wave to current savings
+    const interest = this.modifierApply.goldInterest
+    if (interest && this.currentRound > 0) {
+      const bonus = Math.floor(this.money * interest)
+      if (bonus > 0) {
+        this.money += bonus
+        this.stats.moneyEarned += bonus
+      }
     }
 
     this.currentRound++
@@ -170,9 +186,13 @@ export class GameManager {
     const speedMultiplier = waveConfig.speedMultiplier || 1
     const rewardMultiplier = waveConfig.rewardMultiplier || 1
 
-    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier
-    const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier
-    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier)
+    const modHealthMul = this.modifierApply.enemyHealthMul ?? 1
+    const modSpeedMul = this.modifierApply.enemySpeedMul ?? 1
+    const modRewardMul = this.modifierApply.rewardMul ?? 1
+
+    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier * modHealthMul
+    const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier * modSpeedMul
+    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier * modRewardMul)
 
     const enemy = {
       type: enemyType,
@@ -207,11 +227,24 @@ export class GameManager {
   placeTower(gridX, gridY, towerType) {
     if (!this.canPlaceTower(gridX, gridY)) return false
 
-    const tower = TOWER_TYPES[towerType]
-    if (!tower || this.money < tower.cost) return false
+    if (this.config.allowedTowers && this.config.allowedTowers.length > 0 && !this.config.allowedTowers.includes(towerType)) {
+      return false
+    }
 
-    this.money -= tower.cost
-    this.stats.moneySpent += tower.cost
+    const tower = TOWER_TYPES[towerType]
+    if (!tower) return false
+
+    // Run modifier: cost, damage, range, fire rate multipliers
+    const costMul = this.modifierApply.towerCostMul ?? 1
+    const dmgMul = this.modifierApply.towerDamageMul ?? 1
+    const rangeMul = this.modifierApply.towerRangeMul ?? 1
+    const fireRateMul = this.modifierApply.towerFireRateMul ?? 1
+
+    const cost = Math.ceil(tower.cost * costMul)
+    if (this.money < cost) return false
+
+    this.money -= cost
+    this.stats.moneySpent += cost
     this.stats.towersBuilt++
     sound.build()
 
@@ -221,12 +254,19 @@ export class GameManager {
       y: gridY,
       lastFire: 0,
       level: 1,
-      damage: tower.damage,
-      range: tower.range,
-      fireRate: tower.fireRate
+      damage: tower.damage * dmgMul,
+      range: tower.range * rangeMul,
+      fireRate: tower.fireRate * fireRateMul,
+      effectiveCost: cost
     })
 
     return true
+  }
+
+  effectiveCost(tower) {
+    if (!tower) return 0
+    const costMul = this.modifierApply.towerCostMul ?? 1
+    return Math.ceil(tower.cost * costMul)
   }
 
   canPlaceTower(gridX, gridY) {
@@ -263,15 +303,24 @@ export class GameManager {
     return true
   }
 
+  upgradeCostFor(tower) {
+    const costMul = this.modifierApply.towerCostMul ?? 1
+    return Math.ceil(tower.type.upgradeCost * costMul)
+  }
+
   upgradeTower(tower) {
     if (!tower || tower.level >= 3) return false
-    if (this.money < tower.type.upgradeCost) return false
+    const upCost = this.upgradeCostFor(tower)
+    if (this.money < upCost) return false
 
-    this.money -= tower.type.upgradeCost
-    this.stats.moneySpent += tower.type.upgradeCost
+    const dmgMul = this.modifierApply.towerDamageMul ?? 1
+    const rangeMul = this.modifierApply.towerRangeMul ?? 1
+
+    this.money -= upCost
+    this.stats.moneySpent += upCost
     tower.level++
-    tower.damage = tower.type.upgradeDamage * tower.level
-    tower.range = tower.type.upgradeRange || tower.range
+    tower.damage = tower.type.upgradeDamage * tower.level * dmgMul
+    if (tower.type.upgradeRange) tower.range = tower.type.upgradeRange * rangeMul
     sound.upgrade()
 
     return true
@@ -280,7 +329,8 @@ export class GameManager {
   sellTower(tower) {
     const idx = this.towers.indexOf(tower)
     if (idx === -1) return 0
-    const refund = Math.floor(tower.type.cost * SELL_REFUND_RATIO)
+    const baseCost = tower.effectiveCost ?? tower.type.cost
+    const refund = Math.floor(baseCost * SELL_REFUND_RATIO)
     this.money += refund
     this.towers.splice(idx, 1)
     sound.sell()
@@ -435,8 +485,9 @@ export class GameManager {
       }
 
       if (enemy.health <= 0) {
+        const scoreMul = this.modifierApply.scoreMul ?? 1
         this.money += enemy.reward
-        this.score += enemy.reward * 10
+        this.score += Math.round(enemy.reward * 10 * scoreMul)
         this.stats.kills++
         this.stats.moneyEarned += enemy.reward
 
@@ -608,8 +659,9 @@ export class GameManager {
         projectile.slowDuration = tt.slowDuration
       }
       if (tt.burnDamagePerSecond) {
+        const burnMul = this.modifierApply.burnDurationMul ?? 1
         projectile.burnDamagePerSecond = tt.burnDamagePerSecond
-        projectile.burnDuration = tt.burnDuration
+        projectile.burnDuration = tt.burnDuration * burnMul
       }
       this.projectiles.push(projectile)
     }
@@ -703,6 +755,7 @@ export class GameManager {
   getState() {
     return {
       health: this.health,
+      maxHealth: this.maxHealth,
       money: this.money,
       round: this.currentRound,
       totalRounds: this.config.rounds,
@@ -720,7 +773,9 @@ export class GameManager {
       victory: this.victory,
       gameOver: this.gameOver,
       paused: this.paused,
-      stats: this.stats
+      stats: this.stats,
+      modifier: this.modifier,
+      allowedTowers: this.config.allowedTowers
     }
   }
 }

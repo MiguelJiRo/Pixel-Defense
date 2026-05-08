@@ -1,0 +1,316 @@
+.pregame-backdrop {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.95) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 16px;
+  animation: pregame-fade 200ms ease-out;
+}
+
+@keyframes pregame-fade {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.pregame-card {
+  background: var(--bg-1);
+  border: 3px solid var(--accent);
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow:
+    0 0 0 4px var(--bg-0),
+    0 0 80px rgba(0, 255, 136, 0.2);
+  overflow: hidden;
+}
+
+.pregame-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 12px;
+  border-bottom: 2px solid var(--line);
+  background: var(--bg-2);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.pregame-tag {
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.pregame-header h2 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.pregame-sub {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.pregame-counter {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-shrink: 0;
+  border: 2px solid var(--line);
+  padding: 8px 12px;
+  background: var(--bg-3);
+}
+
+.pregame-counter-num {
+  font-size: 24px;
+  color: var(--accent);
+}
+
+.pregame-counter-divider {
+  margin: 0 2px;
+}
+
+/* DRAFT GRID */
+.draft-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.draft-card {
+  position: relative;
+  background: var(--bg-2);
+  border: 2px solid var(--line);
+  color: var(--text);
+  font-family: var(--font-body);
+  padding: 10px 8px;
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+
+.draft-card:hover:not(:disabled) {
+  background: var(--bg-3);
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+
+.draft-card.picked {
+  border-color: var(--accent);
+  background: rgba(0, 255, 136, 0.12);
+  box-shadow: 0 0 0 2px #000, 0 0 16px rgba(0, 255, 136, 0.4);
+}
+
+.draft-card:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.draft-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.draft-color {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #000;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.draft-name {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.draft-cost {
+  font-size: 13px;
+  color: var(--money);
+  font-weight: 700;
+}
+
+.draft-stats {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.draft-checkmark {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--accent);
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* MODIFIER GRID */
+.modifier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.modifier-card {
+  background: var(--bg-2);
+  border: 3px solid var(--line);
+  color: var(--text);
+  font-family: var(--font-body);
+  padding: 16px 14px;
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+  min-width: 0;
+  position: relative;
+}
+
+.modifier-card:hover:not(:disabled) {
+  background: var(--bg-3);
+  border-color: var(--card-color);
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 2px #000, 0 6px 0 #000;
+}
+
+.modifier-card.picked {
+  border-color: var(--card-color);
+  background: var(--bg-3);
+  box-shadow: 0 0 0 2px #000, 0 0 24px var(--card-color);
+}
+
+.modifier-sign {
+  font-family: var(--font-display);
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--card-color);
+  color: var(--card-color);
+  background: var(--bg-1);
+}
+
+.modifier-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--card-color);
+  text-shadow: 2px 2px 0 #000;
+  line-height: 1.3;
+}
+
+.modifier-desc {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.modifier-flavor {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: auto;
+}
+
+/* FOOTER */
+.pregame-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--bg-2);
+  border-top: 2px solid var(--line);
+  flex-shrink: 0;
+}
+
+.pregame-btn {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  padding: 10px 18px;
+  border: 3px solid;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.pregame-btn-primary {
+  background: var(--accent);
+  color: #001b0e;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px #000, 0 4px 0 #000;
+}
+
+.pregame-btn-primary:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px #000, 0 6px 0 #000;
+}
+
+.pregame-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: 0 0 0 2px #000;
+}
+
+.pregame-btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.pregame-btn-secondary:hover {
+  background: var(--bg-3);
+  border-color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .draft-grid { grid-template-columns: repeat(2, 1fr); }
+  .modifier-grid { grid-template-columns: 1fr; }
+  .pregame-card { width: 100%; }
+}
+
+@media (max-height: 580px) {
+  .pregame-header { padding: 10px 14px 8px; }
+  .pregame-header h2 { font-size: 12px; margin-bottom: 3px; }
+  .pregame-sub { font-size: 12px; }
+  .pregame-counter-num { font-size: 18px; }
+  .draft-grid, .modifier-grid { padding: 10px 14px; gap: 6px; }
+  .modifier-card { padding: 10px 10px; }
+  .modifier-flavor { display: none; }
+}

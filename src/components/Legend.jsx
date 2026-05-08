@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { TOWER_TYPES, ENEMY_TYPES, DAMAGE_TYPE_META } from '../game/constants'
 import { EVENT_TYPES } from '../game/events'
+import { RUN_MODIFIERS } from '../game/modifiers'
 import DamageIcon from './DamageIcon'
 import './Legend.css'
 
@@ -122,6 +123,26 @@ function Legend({ onClose }) {
                     <span className="legend-stats">
                       HP {e.health} · Speed {e.speed} · Reward ${e.reward}
                     </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h3>Run Modifiers</h3>
+            <p className="legend-section-hint">
+              Optional cards picked at run start (one per run). Each one bends the rules of the whole game.
+            </p>
+            <ul className="legend-grid">
+              {Object.values(RUN_MODIFIERS).map((mod) => (
+                <li key={mod.id}>
+                  <span className="legend-mod-sign" style={{ color: mod.color, borderColor: mod.color }}>
+                    {mod.sign}
+                  </span>
+                  <div>
+                    <strong style={{ color: mod.color }}>{mod.name}</strong>
+                    <span className="legend-text">{mod.description}</span>
                   </div>
                 </li>
               ))}

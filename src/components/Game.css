@@ -87,6 +87,30 @@
   z-index: 1;
 }
 
+.modifier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 2px solid;
+  background: rgba(0, 0, 0, 0.4);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: help;
+  align-self: center;
+}
+
+.modifier-pill-sign {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.modifier-pill-name {
+  font-size: 9px;
+  line-height: 1;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;

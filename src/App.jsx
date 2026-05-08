@@ -1,18 +1,61 @@
 import { useCallback, useState } from 'react'
 import StartMenu from './components/StartMenu'
 import Game from './components/Game'
+import TowerDraft from './components/TowerDraft'
+import ModifierPicker from './components/ModifierPicker'
 import { saveHighScore, getHighScore } from './utils/storage'
 import './App.css'
 
 function App() {
   const [gameState, setGameState] = useState('menu')
+  const [pendingConfig, setPendingConfig] = useState(null)
+  const [draftPicks, setDraftPicks] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
   const [endSummary, setEndSummary] = useState(null)
 
-  const startGame = useCallback((config) => {
-    setGameConfig(config)
+  const buildFinalConfig = (config, allowedTowers, modifier) => {
+    const final = { ...config }
+    if (allowedTowers) final.allowedTowers = allowedTowers
+    if (modifier) final.modifier = modifier
+    return final
+  }
+
+  const advanceFromMenu = useCallback((config) => {
+    setPendingConfig(config)
     setEndSummary(null)
+    setDraftPicks(null)
+    if (config.useDraft) {
+      setGameState('draft')
+    } else if (config.useModifier) {
+      setGameState('modifier')
+    } else {
+      const final = buildFinalConfig(config, null, null)
+      setGameConfig(final)
+      setGameState('playing')
+    }
+  }, [])
+
+  const onDraftConfirm = useCallback((picks) => {
+    setDraftPicks(picks)
+    if (pendingConfig?.useModifier) {
+      setGameState('modifier')
+    } else {
+      const final = buildFinalConfig(pendingConfig, picks, null)
+      setGameConfig(final)
+      setGameState('playing')
+    }
+  }, [pendingConfig])
+
+  const onModifierConfirm = useCallback((modifier) => {
+    const final = buildFinalConfig(pendingConfig, draftPicks, modifier)
+    setGameConfig(final)
     setGameState('playing')
+  }, [pendingConfig, draftPicks])
+
+  const cancelToMenu = useCallback(() => {
+    setGameState('menu')
+    setPendingConfig(null)
+    setDraftPicks(null)
   }, [])
 
   const finishWith = useCallback((outcome, state) => {
@@ -26,7 +69,8 @@ function App() {
       totalRounds: state.totalRounds,
       stats: state.stats,
       newRecord: state.score > previousBest,
-      bestScore: newBest
+      bestScore: newBest,
+      modifier: state.modifier
     })
     setGameState(outcome)
   }, [gameConfig])
@@ -38,15 +82,37 @@ function App() {
     setGameState('menu')
     setGameConfig(null)
     setEndSummary(null)
+    setPendingConfig(null)
+    setDraftPicks(null)
   }, [])
 
   const playAgain = useCallback(() => {
-    if (gameConfig) startGame(gameConfig)
-  }, [gameConfig, startGame])
+    if (gameConfig) {
+      setEndSummary(null)
+      // Clone the config so Game's useEffect treats it as a new run and re-mounts state
+      setGameConfig({ ...gameConfig })
+      setGameState('playing')
+    }
+  }, [gameConfig])
+
+  const showModifierStep = pendingConfig?.useDraft && pendingConfig?.useModifier
+  const modifierStepLabel = showModifierStep ? 'Step 2 / Run setup' : 'Step 1 / Run setup'
 
   return (
     <div className="app">
-      {gameState === 'menu' && <StartMenu onStart={startGame} />}
+      {gameState === 'menu' && <StartMenu onStart={advanceFromMenu} />}
+
+      {gameState === 'draft' && pendingConfig && (
+        <TowerDraft onConfirm={onDraftConfirm} onCancel={cancelToMenu} />
+      )}
+
+      {gameState === 'modifier' && pendingConfig && (
+        <ModifierPicker
+          stepLabel={modifierStepLabel}
+          onConfirm={onModifierConfirm}
+          onCancel={cancelToMenu}
+        />
+      )}
 
       {gameState === 'playing' && gameConfig && (
         <Game
@@ -69,7 +135,7 @@ function App() {
 }
 
 function EndScreen({ summary, onPlayAgain, onReturnToMenu }) {
-  const { outcome, score, round, totalRounds, stats, newRecord, bestScore } = summary
+  const { outcome, score, round, totalRounds, stats, newRecord, bestScore, modifier } = summary
   const won = outcome === 'victory'
 
   return (
@@ -88,6 +154,9 @@ function EndScreen({ summary, onPlayAgain, onReturnToMenu }) {
           <div><dt>Towers built</dt><dd>{stats.towersBuilt}</dd></div>
           <div><dt>Money earned</dt><dd>${stats.moneyEarned}</dd></div>
           <div><dt>Leaks</dt><dd>{stats.leaks}</dd></div>
+          {modifier && (
+            <div><dt>Modifier</dt><dd style={{ color: modifier.color }}>{modifier.name}</dd></div>
+          )}
         </dl>
 
         <div className="end-actions">
