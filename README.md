@@ -14,7 +14,7 @@ Place towers, survive randomized waves, master random events, and chase the high
 - **4 difficulty levels**: Easy, Normal, Hard, Extreme.
 - **Customizable run length**: 10 / 20 / 30 / 40 rounds, or any custom value (1–999).
 - **Random wave events**: Double Wave, Speed Boost, Armored, Boss Rush, Swarm, Money Bonus, Air Raid.
-- **Pause / Resume**, **skip prep timer**, and **keyboard shortcuts** (1–4 / Space / P / M / L / Esc).
+- **Pause / Resume**, **skip prep timer**, and **keyboard shortcuts** (1–8 / Space / P / M / L / Esc).
 - **In-game Legend** (`L` or the `?` icon) — full reference of damage types, towers, enemies and events.
 - **High-score persistence** per difficulty/round combo via `localStorage`.
 - **Responsive layout**: works on desktop and tablet; sidebar collapses below the canvas on small screens.
@@ -25,14 +25,18 @@ Place towers, survive randomized waves, master random events, and chase the high
 
 ## Towers
 
-Every tower deals a unique damage type. The damage type matters: enemies have resistances and vulnerabilities to each one.
+Eight towers, each with a unique damage type and combat behavior. Mixing them is essential — no single tower handles every threat.
 
-| Tower   | Cost | Damage | Range | Speed     | Damage type   | Notes                            |
-| ------- | ---- | ------ | ----- | --------- | ------------- | -------------------------------- |
-| Basic   | $100 | 10     | 3     | Medium    | ● Kinetic     | All-rounder, no specialization   |
-| Sniper  | $200 | 50     | 6     | Slow      | → Piercing    | Punches through armor            |
-| Rapid   | $150 | 5      | 2.5   | Very fast | ⚡ Energy     | Bypasses physical defenses       |
-| Splash  | $250 | 20     | 3     | Medium    | ✺ Explosive  | Area damage, devastates clusters |
+| Tower   | Cost | Damage    | Range | Behavior      | Damage type    | Notes                                                |
+| ------- | ---- | --------- | ----- | ------------- | -------------- | ---------------------------------------------------- |
+| Basic   | $100 | 10        | 3     | Projectile    | ● Kinetic      | All-rounder, cheap and balanced                      |
+| Sniper  | $200 | 50        | 6     | Projectile    | → Piercing     | Long range alpha. Best vs Tanks and Bosses           |
+| Rapid   | $150 | 5         | 2.5   | Projectile    | ⚡ Energy      | Very fast rate of fire vs swarms                     |
+| Splash  | $250 | 20        | 3     | Splash AoE    | ✺ Explosive   | Hits clusters; bypasses Phantom evasion              |
+| Frost   | $200 | 4         | 3     | Projectile +slow | ⚡ Energy   | Slows enemies 50% for 1.5s. Counters Speed Boost     |
+| Burn    | $220 | 6 + DoT   | 3     | Projectile +DoT | ✺ Explosive | 12 dmg/s burning for 4s — DoT bypasses shields       |
+| Chain   | $280 | 18        | 3     | Chain (3)     | ⚡ Energy      | Bounces to up to 3 enemies with 60% falloff per hop  |
+| Beam    | $300 | 14/s      | 4     | Continuous laser | → Piercing | Locks on target, ramps to full damage. Never misses  |
 
 Each tower can be upgraded up to **level 3** during preparation phases. Selling a tower refunds **70%** of its build cost.
 
@@ -90,7 +94,7 @@ Opening the legend pauses the game; closing it resumes (unless you were already 
 
 | Action                | Mouse / Touch        | Keyboard          |
 | --------------------- | -------------------- | ----------------- |
-| Select tower type     | Click in shop        | `1` – `4`         |
+| Select tower type     | Click in shop        | `1` – `8`         |
 | Place tower           | Click on grid        | —                 |
 | Place multiple        | Hold `Shift` + click | —                 |
 | Inspect / select tower| Click on tower       | —                 |

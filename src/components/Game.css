@@ -273,17 +273,18 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 5px;
 }
 
 .tower-button {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
   width: 100%;
-  padding: 5px 8px;
+  padding: 5px 7px 6px;
   background: var(--bg-2);
   border: 2px solid var(--line);
   color: var(--text);
@@ -292,12 +293,19 @@
   transition: all 0.15s ease;
   text-align: left;
   position: relative;
+  min-width: 0;
+}
+
+.tower-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .tower-button:hover:not(:disabled) {
   background: var(--bg-3);
   border-color: var(--line-strong);
-  transform: translateX(2px);
 }
 
 .tower-button.active {
@@ -331,50 +339,29 @@
 }
 
 .tower-icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid #000;
   flex-shrink: 0;
   box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.3);
 }
 
-.tower-info {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 0;
-  min-width: 0;
-  line-height: 1.15;
-}
-
 .tower-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 .tower-cost {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--money);
   font-weight: 700;
   white-space: nowrap;
-}
-
-.tower-stats {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  line-height: 1.1;
 }
 
 .dmg-badge {
@@ -526,16 +513,12 @@
   .game-sidebar {
     width: 100%;
     flex-shrink: 0;
-    max-height: 50dvh;
+    max-height: 55dvh;
     border-left: none;
     border-top: 2px solid var(--line);
+    overflow-y: auto;
   }
   .canvas-wrap { padding: 6px; flex: 1 1 auto; min-height: 0; }
-  .tower-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 5px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -553,8 +536,10 @@
   .game-sidebar { padding: 8px; gap: 6px; }
   .game-header { padding: 5px 12px; }
   .stat-value { font-size: 15px; }
-  .tower-stats { display: none; }
   .hotkeys-hint { display: none; }
+  .tower-button { padding: 4px 6px; gap: 1px; }
+  .tower-name { font-size: 12px; }
+  .tower-cost { font-size: 11px; }
 }
 
 @media (max-height: 520px) {
