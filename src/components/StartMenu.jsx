@@ -26,6 +26,8 @@ function StartMenu({ onStart }) {
   const [customRounds, setCustomRounds] = useState('')
   const [highScore, setHighScore] = useState(0)
   const [audio, setAudio] = useState(sound.getState())
+  const [draftEnabled, setDraftEnabled] = useState(true)
+  const [modifierEnabled, setModifierEnabled] = useState(true)
 
   useEffect(() => sound.subscribe(setAudio), [])
 
@@ -45,7 +47,9 @@ function StartMenu({ onStart }) {
     onStart({
       difficulty,
       rounds: effectiveRounds,
-      difficultyMultiplier: config.multiplier
+      difficultyMultiplier: config.multiplier,
+      useDraft: draftEnabled,
+      useModifier: modifierEnabled
     })
   }
 
@@ -137,6 +141,34 @@ function StartMenu({ onStart }) {
           </label>
         </fieldset>
       </div>
+
+      <fieldset className="run-modes">
+        <legend>Run modes</legend>
+        <label className={`mode-checkbox ${draftEnabled ? 'on' : ''}`}>
+          <input
+            type="checkbox"
+            checked={draftEnabled}
+            onChange={(e) => { sound.uiClick(); setDraftEnabled(e.target.checked) }}
+          />
+          <span className="mode-box" aria-hidden="true">{draftEnabled ? '✓' : ''}</span>
+          <span className="mode-label">
+            <span className="mode-name">Tower Draft</span>
+            <span className="mode-hint">Pick 5 of 8 towers for the run</span>
+          </span>
+        </label>
+        <label className={`mode-checkbox ${modifierEnabled ? 'on' : ''}`}>
+          <input
+            type="checkbox"
+            checked={modifierEnabled}
+            onChange={(e) => { sound.uiClick(); setModifierEnabled(e.target.checked) }}
+          />
+          <span className="mode-box" aria-hidden="true">{modifierEnabled ? '✓' : ''}</span>
+          <span className="mode-label">
+            <span className="mode-name">Run Modifier</span>
+            <span className="mode-hint">Pick 1 of 3 buffs / tradeoffs</span>
+          </span>
+        </label>
+      </fieldset>
 
       <div className="summary-row" aria-live="polite">
         <div>

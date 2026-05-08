@@ -10,10 +10,14 @@ import Legend from './Legend'
 import './Game.css'
 
 const TOWER_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8']
-const TOWER_TYPE_LIST = Object.values(TOWER_TYPES)
+const ALL_towerTypeList = Object.values(TOWER_TYPES)
 const UI_TICK_MS = 100
 
 function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
+  const towerTypeList = config.allowedTowers && config.allowedTowers.length > 0
+    ? ALL_towerTypeList.filter(t => config.allowedTowers.includes(t.id))
+    : ALL_towerTypeList
+
   const canvasRef = useRef(null)
   const wrapRef = useRef(null)
   const gameRef = useRef(null)
@@ -24,6 +28,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
   const [uiState, setUiState] = useState({
     health: INITIAL_HEALTH,
+    maxHealth: INITIAL_HEALTH,
     money: INITIAL_MONEY,
     round: 0,
     totalRounds: config.rounds,
@@ -36,7 +41,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
     paused: false,
     victory: false,
     gameOver: false,
-    stats: { kills: 0, towersBuilt: 0, moneySpent: 0, moneyEarned: 0, leaks: 0 }
+    stats: { kills: 0, towersBuilt: 0, moneySpent: 0, moneyEarned: 0, leaks: 0 },
+    modifier: config.modifier || null
   })
   const [selectedTowerType, setSelectedTowerType] = useState(null)
   const [selectedTower, setSelectedTower] = useState(null)
@@ -87,6 +93,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
         lastUiPush = now
         setUiState({
           health: state.health,
+          maxHealth: state.maxHealth ?? INITIAL_HEALTH,
           money: state.money,
           round: state.round,
           totalRounds: state.totalRounds,
@@ -99,7 +106,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           paused: state.paused,
           victory: state.victory,
           gameOver: state.gameOver,
-          stats: { ...state.stats }
+          stats: { ...state.stats },
+          modifier: state.modifier
         })
 
         if (state.victory && !finishedRef.current) {
@@ -162,8 +170,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       }
 
       const idx = TOWER_HOTKEYS.indexOf(e.key)
-      if (idx !== -1 && idx < TOWER_TYPE_LIST.length) {
-        const t = TOWER_TYPE_LIST[idx]
+      if (idx !== -1 && idx < towerTypeList.length) {
+        const t = towerTypeList[idx]
         sound.uiClick()
         setSelectedTowerType((cur) => (cur === t.id ? null : t.id))
       }
@@ -596,13 +604,13 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
   legendActionsRef.current = { open: openLegend, close: closeLegend }
 
   const prepRemaining = Math.max(0, Math.ceil((uiState.wavePrepTime - uiState.waveTimer) / 1000))
-  const healthPct = Math.max(0, Math.min(100, (uiState.health / INITIAL_HEALTH) * 100))
+  const healthPct = Math.max(0, Math.min(100, (uiState.health / (uiState.maxHealth || INITIAL_HEALTH)) * 100))
 
   return (
     <div className="game-container" ref={wrapRef}>
       <header className="game-header" role="banner">
         <div className="header-stats">
-          <div className="stat" aria-label={`Health ${uiState.health} of ${INITIAL_HEALTH}`}>
+          <div className="stat" aria-label={`Health ${uiState.health} of ${uiState.maxHealth || INITIAL_HEALTH}`}>
             <span className="stat-label">Health</span>
             <div className="stat-bar">
               <div className="stat-bar-fill health" style={{ width: `${healthPct}%` }} />
@@ -621,6 +629,16 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             <span className="stat-label">Score</span>
             <span className="stat-value">{uiState.score}</span>
           </div>
+          {uiState.modifier && (
+            <div
+              className="modifier-pill"
+              style={{ borderColor: uiState.modifier.color, color: uiState.modifier.color }}
+              title={uiState.modifier.description}
+            >
+              <span className="modifier-pill-sign">{uiState.modifier.sign}</span>
+              <span className="modifier-pill-name">{uiState.modifier.name}</span>
+            </div>
+          )}
         </div>
 
         <div className="header-actions">
@@ -723,8 +741,10 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           <section className="tower-shop" aria-label="Tower shop">
             <h3>Build</h3>
             <ul className="tower-list">
-              {TOWER_TYPE_LIST.map((tower, idx) => {
-                const affordable = uiState.money >= tower.cost
+              {towerTypeList.map((tower, idx) => {
+                const costMul = uiState.modifier?.apply?.towerCostMul ?? 1
+                const effCost = Math.ceil(tower.cost * costMul)
+                const affordable = uiState.money >= effCost
                 const active = selectedTowerType === tower.id
                 const dt = DAMAGE_TYPE_META[tower.damageType]
                 const shortName = tower.name.replace(/\s*Tower$/i, '')
@@ -736,7 +756,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                       onClick={() => setSelectedTowerType(active ? null : tower.id)}
                       disabled={!affordable}
                       aria-pressed={active}
-                      title={`${tower.name} ($${tower.cost}) — ${dt?.label} damage — hotkey ${idx + 1}`}
+                      title={`${tower.name} ($${effCost}) — ${dt?.label} damage — hotkey ${idx + 1}`}
                     >
                       <span className="tower-row-top">
                         <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
@@ -752,7 +772,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                         )}
                       </span>
                       <span className="tower-name">{shortName}</span>
-                      <span className="tower-cost">${tower.cost}</span>
+                      <span className="tower-cost">${effCost}</span>
                     </button>
                   </li>
                 )

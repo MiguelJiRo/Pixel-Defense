@@ -16,6 +16,9 @@ Place towers, survive randomized waves, master random events, and chase the high
 - **Random wave events**: Double Wave, Speed Boost, Armored, Boss Rush, Swarm, Money Bonus, Air Raid.
 - **Pause / Resume**, **skip prep timer**, and **keyboard shortcuts** (1–8 / Space / P / M / L / Esc).
 - **In-game Legend** (`L` or the `?` icon) — full reference of damage types, towers, enemies and events.
+- **Run modes** (toggleable in the main menu, both on by default):
+  - *Tower Draft* — pick 5 of 8 towers for the run (56 unique builds).
+  - *Run Modifier* — pick 1 of 3 random cards (buffs / tradeoffs / challenges) for the whole run.
 - **High-score persistence** per difficulty/round combo via `localStorage`.
 - **Responsive layout**: works on desktop and tablet; sidebar collapses below the canvas on small screens.
 - **Accessible**: keyboard-controllable menus, ARIA roles, focus rings, `prefers-reduced-motion` support.
@@ -76,6 +79,26 @@ Mixing tower types is now mandatory: a Sniper-only run will struggle against Fas
 
 ---
 
+## Run Modes
+
+Two opt-in modes selectable from the main menu. They're **on by default** but can be toggled off independently.
+
+### Tower Draft 🎴
+
+Before each run, choose **5 of the 8 towers**. The rest are locked for the run. With 56 possible 5-of-8 combinations you'll constantly face builds that force creative play.
+
+### Run Modifier ⚖️
+
+Pick **1 of 3 random cards** that bend the game's rules for the entire run. Each card is signed:
+
+- **+** purely positive (e.g. *Sharpshooters* +15% range, *Frugal* −12% cost)
+- **±** tradeoff (e.g. *Glass Cannons* +40% damage but −25% range, *Speed Demons* faster towers but faster enemies, *Pyromaniac Pact* burn lasts 2× but towers cost +15%)
+- **−** challenge (e.g. *Iron Legion* +25% enemy HP but +30% gold, *Thin Line* half starting HP but +20% score)
+
+Both modes can be combined for maximum variety, or disabled if you want the classic experience.
+
+---
+
 ## In-game Legend
 
 Press **`L`** or click the **`?`** icon in the header at any time to open a full reference panel covering:
@@ -84,6 +107,7 @@ Press **`L`** or click the **`?`** icon in the header at any time to open a full
 - **Towers** — stats and which damage type they deal.
 - **Enemies** — visual sample of every aura and a one-line description of each ability.
 - **Wave events** — every random modifier that can hit a wave.
+- **Run modifiers** — every card that can show up in the pre-game pick.
 - **Field indicators** — what the ▲ ▼ markers, cyan rings, green halos and translucent bodies mean.
 
 Opening the legend pauses the game; closing it resumes (unless you were already paused).
@@ -142,12 +166,16 @@ pixel-defense/
 │   │   ├── Game.css
 │   │   ├── DamageIcon.jsx     # Pixel-style SVG icons for damage types
 │   │   ├── Legend.jsx         # In-game reference modal
-│   │   └── Legend.css
+│   │   ├── Legend.css
+│   │   ├── TowerDraft.jsx     # Pre-game draft (pick 5 of 8 towers)
+│   │   ├── ModifierPicker.jsx # Pre-game modifier card picker
+│   │   └── PreGame.css
 │   ├── game/
 │   │   ├── GameManager.js     # Game loop, towers, enemies, waves, abilities
 │   │   ├── ParticleSystem.js  # Visual effects
 │   │   ├── SoundManager.js    # Web Audio synthesizer (SFX + ambient music)
 │   │   ├── events.js          # Random wave events
+│   │   ├── modifiers.js       # Run modifier registry
 │   │   └── constants.js       # Tower / enemy / damage type tuning
 │   └── utils/
 │       └── storage.js         # High-score persistence
