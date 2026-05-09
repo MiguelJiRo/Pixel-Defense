@@ -149,7 +149,7 @@ function StartMenu({ onStart }) {
           <div className="hint">{activeDifficultyHint}</div>
         </fieldset>
 
-        <fieldset className="config-section" disabled={endlessEnabled}>
+        <fieldset className="config-section">
           <legend>{t('menu.rounds')}</legend>
           <div className="button-group" role="radiogroup" aria-label={t('menu.rounds')}>
             {ROUND_PRESETS.map(n => (
@@ -157,14 +157,25 @@ function StartMenu({ onStart }) {
                 key={n}
                 type="button"
                 role="radio"
-                aria-checked={!customRounds && rounds === n}
-                className={`menu-button ${!customRounds && rounds === n ? 'active' : ''}`}
+                aria-checked={!endlessEnabled && !customRounds && rounds === n}
+                className={`menu-button ${!endlessEnabled && !customRounds && rounds === n ? 'active' : ''}`}
                 onClick={() => pickRounds(n)}
                 disabled={endlessEnabled}
               >
                 {n}
               </button>
             ))}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={endlessEnabled}
+              className={`menu-button infinite-button ${endlessEnabled ? 'active' : ''}`}
+              onClick={() => { sound.uiClick(); setEndlessEnabled(v => !v) }}
+              title={t('menu.endless.hint')}
+              disabled={tutorialEnabled}
+            >
+              ∞
+            </button>
           </div>
           <label className="custom-input">
             <span className="visually-hidden">{t('menu.customRoundsLabel')}</span>

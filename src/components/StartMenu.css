@@ -170,6 +170,18 @@
   box-shadow: 0 0 0 2px #000, 0 0 12px rgba(0, 255, 136, 0.4);
 }
 
+.menu-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.menu-button.infinite-button {
+  font-size: 14px;
+  letter-spacing: 0;
+  min-width: 38px;
+  padding: 6px 10px;
+}
+
 .hint {
   font-size: 12px;
   color: var(--text-dim);
