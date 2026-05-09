@@ -4,6 +4,7 @@ import Game from './components/Game'
 import TowerDraft from './components/TowerDraft'
 import ModifierPicker from './components/ModifierPicker'
 import { saveHighScore, getHighScore } from './utils/storage'
+import { useT } from './i18n/i18n'
 import './App.css'
 
 function App() {
@@ -96,7 +97,7 @@ function App() {
   }, [gameConfig])
 
   const showModifierStep = pendingConfig?.useDraft && pendingConfig?.useModifier
-  const modifierStepLabel = showModifierStep ? 'Step 2 / Run setup' : 'Step 1 / Run setup'
+  const modifierStepKey = showModifierStep ? 'pregame.step2' : 'pregame.step1'
 
   return (
     <div className="app">
@@ -108,7 +109,7 @@ function App() {
 
       {gameState === 'modifier' && pendingConfig && (
         <ModifierPicker
-          stepLabel={modifierStepLabel}
+          stepKey={modifierStepKey}
           onConfirm={onModifierConfirm}
           onCancel={cancelToMenu}
         />
@@ -135,36 +136,37 @@ function App() {
 }
 
 function EndScreen({ summary, onPlayAgain, onReturnToMenu }) {
+  const t = useT()
   const { outcome, score, round, totalRounds, stats, newRecord, bestScore, modifier } = summary
   const won = outcome === 'victory'
 
   return (
     <div className={`end-screen ${won ? 'win' : 'loss'}`} role="dialog" aria-modal="true">
       <div className="end-card">
-        <div className="end-tag">{won ? 'VICTORY' : 'GAME OVER'}</div>
+        <div className="end-tag">{won ? t('end.victoryTag') : t('end.gameOverTag')}</div>
         <h1 className="end-title">
-          {won ? 'You held the line.' : 'The line has fallen.'}
+          {won ? t('end.victoryTitle') : t('end.defeatTitle')}
         </h1>
 
         <dl className="end-stats">
-          <div><dt>Score</dt><dd>{score.toLocaleString()}</dd></div>
-          <div><dt>Best</dt><dd>{bestScore.toLocaleString()}{newRecord && <span className="new-record"> NEW</span>}</dd></div>
-          <div><dt>Round reached</dt><dd>{round}/{totalRounds}</dd></div>
-          <div><dt>Kills</dt><dd>{stats.kills}</dd></div>
-          <div><dt>Towers built</dt><dd>{stats.towersBuilt}</dd></div>
-          <div><dt>Money earned</dt><dd>${stats.moneyEarned}</dd></div>
-          <div><dt>Leaks</dt><dd>{stats.leaks}</dd></div>
+          <div><dt>{t('end.score')}</dt><dd>{score.toLocaleString()}</dd></div>
+          <div><dt>{t('end.best')}</dt><dd>{bestScore.toLocaleString()}{newRecord && <span className="new-record"> {t('end.new')}</span>}</dd></div>
+          <div><dt>{t('end.roundReached')}</dt><dd>{round}/{totalRounds}</dd></div>
+          <div><dt>{t('end.kills')}</dt><dd>{stats.kills}</dd></div>
+          <div><dt>{t('end.towersBuilt')}</dt><dd>{stats.towersBuilt}</dd></div>
+          <div><dt>{t('end.moneyEarned')}</dt><dd>${stats.moneyEarned}</dd></div>
+          <div><dt>{t('end.leaks')}</dt><dd>{stats.leaks}</dd></div>
           {modifier && (
-            <div><dt>Modifier</dt><dd style={{ color: modifier.color }}>{modifier.name}</dd></div>
+            <div><dt>{t('end.modifier')}</dt><dd style={{ color: modifier.color }}>{t(`modifier.${modifier.id}.name`, modifier.name)}</dd></div>
           )}
         </dl>
 
         <div className="end-actions">
           <button type="button" className="btn-primary" onClick={onPlayAgain}>
-            Play Again
+            {t('end.playAgain')}
           </button>
           <button type="button" className="btn-secondary" onClick={onReturnToMenu}>
-            Main Menu
+            {t('end.mainMenu')}
           </button>
         </div>
       </div>

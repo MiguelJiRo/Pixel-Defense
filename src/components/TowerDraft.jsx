@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { TOWER_TYPES, DAMAGE_TYPE_META } from '../game/constants'
 import DamageIcon from './DamageIcon'
+import { useT } from '../i18n/i18n'
 import './PreGame.css'
 
 const ALL_TOWERS = Object.values(TOWER_TYPES)
 const REQUIRED_PICKS = 5
 
 function TowerDraft({ onConfirm, onCancel }) {
+  const t = useT()
   const [picked, setPicked] = useState(new Set())
 
   const toggle = (id) => {
@@ -27,14 +29,14 @@ function TowerDraft({ onConfirm, onCancel }) {
   }
 
   return (
-    <div className="pregame-backdrop" role="dialog" aria-modal="true" aria-label="Tower draft">
+    <div className="pregame-backdrop" role="dialog" aria-modal="true" aria-label={t('draft.title')}>
       <div className="pregame-card">
         <header className="pregame-header">
           <div>
-            <div className="pregame-tag">Step 1 / Run setup</div>
-            <h2>Draft your towers</h2>
+            <div className="pregame-tag">{t('pregame.step1')}</div>
+            <h2>{t('draft.title')}</h2>
             <p className="pregame-sub">
-              Pick {REQUIRED_PICKS} of {ALL_TOWERS.length}. Only these will be available for the run.
+              {t('draft.sub', null, { n: REQUIRED_PICKS, total: ALL_TOWERS.length })}
             </p>
           </div>
           <div className="pregame-counter" aria-live="polite">
@@ -49,7 +51,8 @@ function TowerDraft({ onConfirm, onCancel }) {
             const dt = DAMAGE_TYPE_META[tower.damageType]
             const isPicked = picked.has(tower.id)
             const disabled = !isPicked && picked.size >= REQUIRED_PICKS
-            const shortName = tower.name.replace(/\s*Tower$/i, '')
+            const shortName = t(`tower.${tower.id}.short`, tower.name.replace(/\s*Tower$/i, ''))
+            const dtLabel = dt ? t(`damage.${tower.damageType}.label`, dt.label) : ''
             return (
               <button
                 key={tower.id}
@@ -58,6 +61,7 @@ function TowerDraft({ onConfirm, onCancel }) {
                 onClick={() => toggle(tower.id)}
                 disabled={disabled}
                 aria-pressed={isPicked}
+                title={t(`tower.${tower.id}.name`, tower.name)}
               >
                 <div className="draft-card-head">
                   <span
@@ -69,14 +73,14 @@ function TowerDraft({ onConfirm, onCancel }) {
                       className="dmg-badge"
                       style={{ color: dt.color, borderColor: dt.color }}
                     >
-                      <DamageIcon type={tower.damageType} size={11} title={dt.label} />
+                      <DamageIcon type={tower.damageType} size={11} title={dtLabel} />
                     </span>
                   )}
                 </div>
                 <div className="draft-name">{shortName}</div>
                 <div className="draft-cost">${tower.cost}</div>
                 <div className="draft-stats">
-                  DMG {tower.damage} · RNG {tower.range}
+                  {t('game.towerDamage')} {tower.damage} · {t('game.towerRange')} {tower.range}
                 </div>
                 {isPicked && <div className="draft-checkmark">✓</div>}
               </button>
@@ -86,7 +90,7 @@ function TowerDraft({ onConfirm, onCancel }) {
 
         <footer className="pregame-footer">
           <button type="button" className="pregame-btn pregame-btn-secondary" onClick={onCancel}>
-            Back
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -94,7 +98,7 @@ function TowerDraft({ onConfirm, onCancel }) {
             onClick={confirm}
             disabled={!ready}
           >
-            {ready ? 'Continue ▶' : `Pick ${remaining} more`}
+            {ready ? t('common.continue') : t('draft.pickMore', null, { n: remaining })}
           </button>
         </footer>
       </div>

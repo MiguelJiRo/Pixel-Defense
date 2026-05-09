@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { pickModifierChoices } from '../game/modifiers'
+import { useT } from '../i18n/i18n'
 import './PreGame.css'
 
-function ModifierPicker({ onConfirm, onCancel, stepLabel = 'Step 2 / Run setup' }) {
+function ModifierPicker({ onConfirm, onCancel, stepKey = 'pregame.step2' }) {
+  const t = useT()
   const choices = useMemo(() => pickModifierChoices(3), [])
   const [selected, setSelected] = useState(null)
 
@@ -11,15 +13,13 @@ function ModifierPicker({ onConfirm, onCancel, stepLabel = 'Step 2 / Run setup' 
   }
 
   return (
-    <div className="pregame-backdrop" role="dialog" aria-modal="true" aria-label="Run modifier">
+    <div className="pregame-backdrop" role="dialog" aria-modal="true" aria-label={t('modifierPicker.title')}>
       <div className="pregame-card">
         <header className="pregame-header">
           <div>
-            <div className="pregame-tag">{stepLabel}</div>
-            <h2>Choose a run modifier</h2>
-            <p className="pregame-sub">
-              Picks one of three random cards. Effects apply for the entire run.
-            </p>
+            <div className="pregame-tag">{t(stepKey)}</div>
+            <h2>{t('modifierPicker.title')}</h2>
+            <p className="pregame-sub">{t('modifierPicker.sub')}</p>
           </div>
         </header>
 
@@ -36,9 +36,9 @@ function ModifierPicker({ onConfirm, onCancel, stepLabel = 'Step 2 / Run setup' 
                 style={{ '--card-color': mod.color }}
               >
                 <div className="modifier-sign" aria-hidden="true">{mod.sign}</div>
-                <div className="modifier-name">{mod.name}</div>
-                <div className="modifier-desc">{mod.description}</div>
-                <div className="modifier-flavor">"{mod.flavor}"</div>
+                <div className="modifier-name">{t(`modifier.${mod.id}.name`, mod.name)}</div>
+                <div className="modifier-desc">{t(`modifier.${mod.id}.desc`, mod.description)}</div>
+                <div className="modifier-flavor">"{t(`modifier.${mod.id}.flavor`, mod.flavor)}"</div>
               </button>
             )
           })}
@@ -46,7 +46,7 @@ function ModifierPicker({ onConfirm, onCancel, stepLabel = 'Step 2 / Run setup' 
 
         <footer className="pregame-footer">
           <button type="button" className="pregame-btn pregame-btn-secondary" onClick={onCancel}>
-            Back
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -54,7 +54,7 @@ function ModifierPicker({ onConfirm, onCancel, stepLabel = 'Step 2 / Run setup' 
             onClick={confirm}
             disabled={!selected}
           >
-            {selected ? 'Start run ▶' : 'Pick one card'}
+            {selected ? t('common.startRun') : t('modifierPicker.pickOne')}
           </button>
         </footer>
       </div>
