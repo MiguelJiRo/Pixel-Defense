@@ -220,11 +220,12 @@
 .run-modes {
   border: 2px solid var(--line);
   background: var(--bg-2);
-  padding: 8px 10px 10px;
+  padding: 6px 8px 8px;
   margin-bottom: clamp(8px, 1.4vh, 14px);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6px;
+  row-gap: 4px;
 }
 
 .run-modes legend {
@@ -234,17 +235,19 @@
   color: var(--text-dim);
   text-transform: uppercase;
   padding: 0 6px;
+  grid-column: 1 / -1;
 }
 
 .mode-checkbox {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
-  padding: 4px 4px;
+  padding: 3px 4px;
   user-select: none;
   border: 1px solid transparent;
   transition: border-color 0.15s, background 0.15s;
+  min-width: 0;
 }
 
 .mode-checkbox:hover {
@@ -259,8 +262,8 @@
 }
 
 .mode-box {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -268,7 +271,7 @@
   border: 2px solid var(--line-strong);
   background: var(--bg-1);
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 10px;
   color: transparent;
   transition: all 0.15s;
 }
@@ -287,23 +290,40 @@
 .mode-label {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   text-align: left;
   flex: 1;
   min-width: 0;
 }
 
 .mode-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mode-hint {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Single column on very narrow widths */
+@media (max-width: 460px) {
+  .run-modes { grid-template-columns: 1fr; }
+}
+
+/* Hide hints when vertical room is tight to keep all checkboxes visible */
+@media (max-height: 720px) {
+  .mode-hint { display: none; }
+  .mode-checkbox { padding: 2px 4px; }
 }
 
 .summary-row {
