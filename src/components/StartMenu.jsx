@@ -37,6 +37,18 @@ function StartMenu({ onStart }) {
     try { return localStorage.getItem('pixel-defense:colorblind:v1') === '1' } catch { return false }
   })
 
+  // Tutorial is meant for new players learning the basics — disable all
+  // run-modifying modes while it's active so the experience matches the tips.
+  const handleTutorialChange = (next) => {
+    sound.uiClick()
+    setTutorialEnabled(next)
+    if (next) {
+      setDraftEnabled(false)
+      setModifierEnabled(false)
+      setEndlessEnabled(false)
+    }
+  }
+
   useEffect(() => {
     document.documentElement.classList.toggle('colorblind', colorblindEnabled)
     try { localStorage.setItem('pixel-defense:colorblind:v1', colorblindEnabled ? '1' : '0') } catch { /* ignore */ }
@@ -173,10 +185,14 @@ function StartMenu({ onStart }) {
 
       <fieldset className="run-modes">
         <legend>{t('menu.runModes')}</legend>
-        <label className={`mode-checkbox ${draftEnabled ? 'on' : ''}`}>
+        <label
+          className={`mode-checkbox ${draftEnabled ? 'on' : ''} ${tutorialEnabled ? 'disabled' : ''}`}
+          title={tutorialEnabled ? t('menu.disabledByTutorial') : undefined}
+        >
           <input
             type="checkbox"
             checked={draftEnabled}
+            disabled={tutorialEnabled}
             onChange={(e) => { sound.uiClick(); setDraftEnabled(e.target.checked) }}
           />
           <span className="mode-box" aria-hidden="true">{draftEnabled ? '✓' : ''}</span>
@@ -185,10 +201,14 @@ function StartMenu({ onStart }) {
             <span className="mode-hint">{t('menu.draft.hint')}</span>
           </span>
         </label>
-        <label className={`mode-checkbox ${modifierEnabled ? 'on' : ''}`}>
+        <label
+          className={`mode-checkbox ${modifierEnabled ? 'on' : ''} ${tutorialEnabled ? 'disabled' : ''}`}
+          title={tutorialEnabled ? t('menu.disabledByTutorial') : undefined}
+        >
           <input
             type="checkbox"
             checked={modifierEnabled}
+            disabled={tutorialEnabled}
             onChange={(e) => { sound.uiClick(); setModifierEnabled(e.target.checked) }}
           />
           <span className="mode-box" aria-hidden="true">{modifierEnabled ? '✓' : ''}</span>
@@ -197,10 +217,14 @@ function StartMenu({ onStart }) {
             <span className="mode-hint">{t('menu.modifier.hint')}</span>
           </span>
         </label>
-        <label className={`mode-checkbox ${endlessEnabled ? 'on' : ''}`}>
+        <label
+          className={`mode-checkbox ${endlessEnabled ? 'on' : ''} ${tutorialEnabled ? 'disabled' : ''}`}
+          title={tutorialEnabled ? t('menu.disabledByTutorial') : undefined}
+        >
           <input
             type="checkbox"
             checked={endlessEnabled}
+            disabled={tutorialEnabled}
             onChange={(e) => { sound.uiClick(); setEndlessEnabled(e.target.checked) }}
           />
           <span className="mode-box" aria-hidden="true">{endlessEnabled ? '✓' : ''}</span>
@@ -213,7 +237,7 @@ function StartMenu({ onStart }) {
           <input
             type="checkbox"
             checked={tutorialEnabled}
-            onChange={(e) => { sound.uiClick(); setTutorialEnabled(e.target.checked) }}
+            onChange={(e) => handleTutorialChange(e.target.checked)}
           />
           <span className="mode-box" aria-hidden="true">{tutorialEnabled ? '✓' : ''}</span>
           <span className="mode-label">
