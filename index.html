@@ -74,6 +74,16 @@
         --font-body: 'VT323', 'Courier New', monospace;
       }
 
+      /* Colorblind palette: deuteranopia / protanopia friendly.
+         Uses blue / orange / yellow instead of green vs red. */
+      html.colorblind {
+        --accent: #4ad1ff;
+        --accent-dim: #2eaad6;
+        --danger: #ff8a3a;
+        --warning: #ffd24a;
+        --money: #ffd24a;
+      }
+
       html,
       body,
       #root {

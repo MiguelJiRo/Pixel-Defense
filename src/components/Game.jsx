@@ -7,6 +7,7 @@ import {
 } from '../game/constants'
 import DamageIcon from './DamageIcon'
 import Legend from './Legend'
+import Tutorial from './Tutorial'
 import { useT, useLang, translate } from '../i18n/i18n'
 import './Game.css'
 
@@ -19,6 +20,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
   const { lang } = useLang()
   const langRef = useRef(lang)
   useEffect(() => { langRef.current = lang }, [lang])
+  const colorblindRef = useRef(!!config.colorblind)
+  useEffect(() => { colorblindRef.current = !!config.colorblind }, [config.colorblind])
 
   const towerTypeList = config.allowedTowers && config.allowedTowers.length > 0
     ? ALL_TOWER_TYPES.filter(tw => config.allowedTowers.includes(tw.id))
@@ -331,6 +334,39 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
       // === ABILITY MARKERS ON THE BODY ===
 
+      // Colorblind: tiny shape glyphs to distinguish base enemies by form
+      if (colorblindRef.current) {
+        const id = enemy.type.id
+        const cx = enemy.x
+        const cy = enemy.y
+        ctx.fillStyle = '#ffffff'
+        if (id === 'FAST') {
+          // Triangle pointing right
+          ctx.beginPath()
+          ctx.moveTo(cx - 2, cy - 3)
+          ctx.lineTo(cx + 3, cy)
+          ctx.lineTo(cx - 2, cy + 3)
+          ctx.closePath()
+          ctx.fill()
+        } else if (id === 'TANK') {
+          // Inner ring
+          ctx.strokeStyle = '#ffffff'
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+          ctx.stroke()
+        } else if (id === 'BOSS' || enemy.type.isBoss) {
+          // Diamond
+          ctx.beginPath()
+          ctx.moveTo(cx, cy - 4)
+          ctx.lineTo(cx + 4, cy)
+          ctx.lineTo(cx, cy + 4)
+          ctx.lineTo(cx - 4, cy)
+          ctx.closePath()
+          ctx.fill()
+        }
+      }
+
       // Healer: white "+" cross
       if (ability?.kind === 'HEAL') {
         ctx.fillStyle = '#ffffff'
@@ -630,7 +666,9 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           </div>
           <div className="stat">
             <span className="stat-label">{t('game.round')}</span>
-            <span className="stat-value">{uiState.round}/{uiState.totalRounds}</span>
+            <span className="stat-value">
+              {uiState.round}{config.endless ? <span className="endless-mark" title={t('menu.endless.name')}>/∞</span> : `/${uiState.totalRounds}`}
+            </span>
           </div>
           <div className="stat">
             <span className="stat-label">{t('game.score')}</span>
@@ -843,6 +881,13 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
       </div>
 
       {legendOpen && <Legend onClose={closeLegend} />}
+
+      {config.tutorial && (
+        <Tutorial
+          enabled={!!config.tutorial}
+          getState={() => gameRef.current?.getState() ?? null}
+        />
+      )}
     </div>
   )
 }

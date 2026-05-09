@@ -31,6 +31,16 @@ function StartMenu({ onStart }) {
   const [audio, setAudio] = useState(sound.getState())
   const [draftEnabled, setDraftEnabled] = useState(true)
   const [modifierEnabled, setModifierEnabled] = useState(true)
+  const [endlessEnabled, setEndlessEnabled] = useState(false)
+  const [tutorialEnabled, setTutorialEnabled] = useState(false)
+  const [colorblindEnabled, setColorblindEnabled] = useState(() => {
+    try { return localStorage.getItem('pixel-defense:colorblind:v1') === '1' } catch { return false }
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('colorblind', colorblindEnabled)
+    try { localStorage.setItem('pixel-defense:colorblind:v1', colorblindEnabled ? '1' : '0') } catch { /* ignore */ }
+  }, [colorblindEnabled])
 
   useEffect(() => sound.subscribe(setAudio), [])
 
@@ -52,7 +62,10 @@ function StartMenu({ onStart }) {
       rounds: effectiveRounds,
       difficultyMultiplier: config.multiplier,
       useDraft: draftEnabled,
-      useModifier: modifierEnabled
+      useModifier: modifierEnabled,
+      endless: endlessEnabled,
+      tutorial: tutorialEnabled,
+      colorblind: colorblindEnabled
     })
   }
 
@@ -124,7 +137,7 @@ function StartMenu({ onStart }) {
           <div className="hint">{activeDifficultyHint}</div>
         </fieldset>
 
-        <fieldset className="config-section">
+        <fieldset className="config-section" disabled={endlessEnabled}>
           <legend>{t('menu.rounds')}</legend>
           <div className="button-group" role="radiogroup" aria-label={t('menu.rounds')}>
             {ROUND_PRESETS.map(n => (
@@ -135,6 +148,7 @@ function StartMenu({ onStart }) {
                 aria-checked={!customRounds && rounds === n}
                 className={`menu-button ${!customRounds && rounds === n ? 'active' : ''}`}
                 onClick={() => pickRounds(n)}
+                disabled={endlessEnabled}
               >
                 {n}
               </button>
@@ -145,12 +159,13 @@ function StartMenu({ onStart }) {
             <input
               type="number"
               inputMode="numeric"
-              placeholder={t('menu.customRounds')}
+              placeholder={endlessEnabled ? t('menu.endlessActive') : t('menu.customRounds')}
               value={customRounds}
               onChange={(e) => setCustomRounds(e.target.value.replace(/\D/g, ''))}
               min="1"
               max="999"
               aria-label={t('menu.customRoundsLabel')}
+              disabled={endlessEnabled}
             />
           </label>
         </fieldset>
@@ -182,6 +197,42 @@ function StartMenu({ onStart }) {
             <span className="mode-hint">{t('menu.modifier.hint')}</span>
           </span>
         </label>
+        <label className={`mode-checkbox ${endlessEnabled ? 'on' : ''}`}>
+          <input
+            type="checkbox"
+            checked={endlessEnabled}
+            onChange={(e) => { sound.uiClick(); setEndlessEnabled(e.target.checked) }}
+          />
+          <span className="mode-box" aria-hidden="true">{endlessEnabled ? '✓' : ''}</span>
+          <span className="mode-label">
+            <span className="mode-name">{t('menu.endless.name')}</span>
+            <span className="mode-hint">{t('menu.endless.hint')}</span>
+          </span>
+        </label>
+        <label className={`mode-checkbox ${tutorialEnabled ? 'on' : ''}`}>
+          <input
+            type="checkbox"
+            checked={tutorialEnabled}
+            onChange={(e) => { sound.uiClick(); setTutorialEnabled(e.target.checked) }}
+          />
+          <span className="mode-box" aria-hidden="true">{tutorialEnabled ? '✓' : ''}</span>
+          <span className="mode-label">
+            <span className="mode-name">{t('menu.tutorial.name')}</span>
+            <span className="mode-hint">{t('menu.tutorial.hint')}</span>
+          </span>
+        </label>
+        <label className={`mode-checkbox ${colorblindEnabled ? 'on' : ''}`}>
+          <input
+            type="checkbox"
+            checked={colorblindEnabled}
+            onChange={(e) => { sound.uiClick(); setColorblindEnabled(e.target.checked) }}
+          />
+          <span className="mode-box" aria-hidden="true">{colorblindEnabled ? '✓' : ''}</span>
+          <span className="mode-label">
+            <span className="mode-name">{t('menu.colorblind.name')}</span>
+            <span className="mode-hint">{t('menu.colorblind.hint')}</span>
+          </span>
+        </label>
       </fieldset>
 
       <div className="summary-row" aria-live="polite">
@@ -192,10 +243,12 @@ function StartMenu({ onStart }) {
         <div>
           <span className="summary-label">{t('menu.mode')}</span>
           <span className="summary-value">
-            {t('menu.modeFormat', null, {
-              difficulty: activeDifficultyName,
-              rounds: effectiveRounds
-            })}
+            {endlessEnabled
+              ? t('menu.modeEndless', null, { difficulty: activeDifficultyName })
+              : t('menu.modeFormat', null, {
+                difficulty: activeDifficultyName,
+                rounds: effectiveRounds
+              })}
           </span>
         </div>
       </div>

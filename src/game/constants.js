@@ -164,7 +164,7 @@ export const ENEMY_TYPES = {
     id: 'BASIC',
     health: 50,
     speed: 1.5,
-    reward: 10,
+    reward: 12,
     color: '#ff0000',
     size: 12,
     // Neutral target dummy
@@ -174,7 +174,7 @@ export const ENEMY_TYPES = {
     id: 'FAST',
     health: 30,
     speed: 3,
-    reward: 15,
+    reward: 18,
     color: '#ffff00',
     size: 10,
     // Small and dodgy: hard to hit with direct fire, fries to area damage
@@ -243,13 +243,90 @@ export const ENEMY_TYPES = {
     // Half-incorporeal: dodges single-target shots half the time, area damage works
     resistances: { KINETIC: 0.6, PIERCING: 0.6, ENERGY: 1.0, EXPLOSIVE: 1.3 },
     ability: { kind: 'PHASE', evadeChance: 0.5 }
+  },
+
+  // ── Unique bosses ──────────────────────────────────────────────────────
+  // Replace the generic BOSS at specific milestone rounds with themed bosses.
+  REGENERATOR: {
+    id: 'REGENERATOR',
+    health: 700,
+    speed: 0.9,
+    reward: 140,
+    color: '#5cf07a',
+    size: 22,
+    isBoss: true,
+    // Regenerates HP if not damaged for a short window — punishes burst-only builds
+    resistances: { KINETIC: 0.85, PIERCING: 1.2, ENERGY: 0.85, EXPLOSIVE: 0.95 },
+    ability: { kind: 'REGEN', regenPerSecond: 30, regenDelayMs: 1500 }
+  },
+  SUMMONER: {
+    id: 'SUMMONER',
+    health: 600,
+    speed: 0.85,
+    reward: 160,
+    color: '#ff5ad8',
+    size: 22,
+    isBoss: true,
+    // Spawns Fast minions periodically, especially when wounded
+    resistances: { KINETIC: 0.85, PIERCING: 1.25, ENERGY: 1.1, EXPLOSIVE: 0.85 },
+    ability: {
+      kind: 'SUMMON',
+      cooldownMs: 5000,
+      hurtCooldownMs: 2500,
+      minion: { health: 25, speed: 2.6, reward: 8, color: '#ff9be0', size: 9 }
+    }
+  },
+  TELEPORTER: {
+    id: 'TELEPORTER',
+    health: 550,
+    speed: 0.95,
+    reward: 180,
+    color: '#4ad1ff',
+    size: 22,
+    isBoss: true,
+    // Jumps forward along the path when hit by area damage
+    resistances: { KINETIC: 1.0, PIERCING: 1.3, ENERGY: 0.9, EXPLOSIVE: 0.5 },
+    ability: { kind: 'TELEPORT', tilesAhead: 1.5, cooldownMs: 4000 }
+  },
+  OVERLORD: {
+    id: 'OVERLORD',
+    health: 1200,
+    speed: 0.8,
+    reward: 250,
+    color: '#ffd24a',
+    size: 26,
+    isBoss: true,
+    // Late-game hybrid: shielded + summons minions on hurt
+    resistances: { KINETIC: 0.75, PIERCING: 1.2, ENERGY: 0.85, EXPLOSIVE: 0.8 },
+    ability: {
+      kind: 'OVERLORD',
+      shield: 250,
+      summonCooldownMs: 6000,
+      hurtSummonCooldownMs: 3000,
+      regenPerSecond: 18,
+      regenDelayMs: 2200,
+      minion: { health: 30, speed: 2.4, reward: 10, color: '#ffd9a0', size: 10 }
+    }
   }
+}
+
+// Boss schedule: which boss appears at the last enemy of each milestone round.
+// The cycle repeats in Endless mode beyond round 20.
+export const BOSS_SCHEDULE = ['REGENERATOR', 'SUMMONER', 'TELEPORTER', 'OVERLORD']
+
+export function getBossForRound(round) {
+  if (round <= 0 || round % 5 !== 0) return null
+  const idx = Math.floor((round - 5) / 5) % BOSS_SCHEDULE.length
+  return BOSS_SCHEDULE[idx]
 }
 
 // Game settings
 export const INITIAL_HEALTH = 20
-export const INITIAL_MONEY = 400
+export const INITIAL_MONEY = 500
 export const WAVE_PREP_TIME = 15000 // ms between waves
+// Bonus paid out when a wave is cleared, scales mildly with round number.
+export const WAVE_CLEAR_BONUS_BASE = 20
+export const WAVE_CLEAR_BONUS_PER_ROUND = 3
 
 // Paths - multiple predefined paths
 export const PATHS = [

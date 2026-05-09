@@ -1,6 +1,8 @@
 import {
   GRID_SIZE, GRID_WIDTH, GRID_HEIGHT, PATHS,
-  TOWER_TYPES, ENEMY_TYPES, INITIAL_HEALTH, INITIAL_MONEY, WAVE_PREP_TIME
+  TOWER_TYPES, ENEMY_TYPES, INITIAL_HEALTH, INITIAL_MONEY, WAVE_PREP_TIME,
+  WAVE_CLEAR_BONUS_BASE, WAVE_CLEAR_BONUS_PER_ROUND,
+  getBossForRound
 } from './constants'
 import { selectRandomEvent } from './events'
 import { ParticleSystem } from './ParticleSystem'
@@ -68,7 +70,7 @@ export class GameManager {
   }
 
   startWave() {
-    if (this.currentRound >= this.config.rounds) {
+    if (!this.config.endless && this.currentRound >= this.config.rounds) {
       this.victory = true
       return
     }
@@ -94,7 +96,8 @@ export class GameManager {
   }
 
   spawnWave() {
-    const baseEnemyCount = 5 + this.currentRound * 2
+    // Smaller waves in early rounds to give the player time to build up an economy.
+    const baseEnemyCount = 4 + this.currentRound * 2
     let enemyCount = Math.floor(baseEnemyCount * this.config.difficultyMultiplier)
 
     let waveConfig = {
@@ -117,10 +120,13 @@ export class GameManager {
 
     if (waveConfig.bossCount > 0) {
       this.enemiesToSpawn = waveConfig.bossCount
+      // Boss Rush spawns the round-themed unique boss when applicable, else a default
+      const bossId = getBossForRound(this.currentRound) || 'OVERLORD'
+      const bossType = ENEMY_TYPES[bossId] || ENEMY_TYPES.BOSS
       for (let i = 0; i < waveConfig.bossCount; i++) {
         this.spawnQueue.push({
           delay: i * 1500,
-          type: ENEMY_TYPES.BOSS,
+          type: bossType,
           waveConfig
         })
       }
@@ -153,9 +159,10 @@ export class GameManager {
       return ENEMY_TYPES.FAST
     }
 
-    // Force a Boss as the last enemy of every 5th round
+    // Force a unique themed boss as the last enemy of every 5th round
     if (round % 5 === 0 && index === totalCount - 1) {
-      return ENEMY_TYPES.BOSS
+      const bossId = getBossForRound(round)
+      return ENEMY_TYPES[bossId] || ENEMY_TYPES.BOSS
     }
 
     // Build a weighted pool that introduces new enemies progressively
@@ -168,7 +175,6 @@ export class GameManager {
     if (round >= 6) pool.push([ENEMY_TYPES.HEALER, 0.25])
     if (round >= 8) pool.push([ENEMY_TYPES.SPLITTER, 0.35])
     if (round >= 10) pool.push([ENEMY_TYPES.PHANTOM, 0.4])
-    if (round >= 12) pool.push([ENEMY_TYPES.BOSS, 0.15])
 
     const total = pool.reduce((s, [, w]) => s + w, 0)
     let r = rand * total
@@ -190,9 +196,18 @@ export class GameManager {
     const modSpeedMul = this.modifierApply.enemySpeedMul ?? 1
     const modRewardMul = this.modifierApply.rewardMul ?? 1
 
-    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier * modHealthMul
+    // Endless mode: exponential scaling beyond round 20
+    let endlessHealthMul = 1
+    let endlessRewardMul = 1
+    if (this.config.endless && this.currentRound > 20) {
+      const extra = this.currentRound - 20
+      endlessHealthMul = Math.pow(1.08, extra)
+      endlessRewardMul = Math.pow(1.04, extra)
+    }
+
+    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier * modHealthMul * endlessHealthMul
     const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier * modSpeedMul
-    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier * modRewardMul)
+    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier * modRewardMul * endlessRewardMul)
 
     const enemy = {
       type: enemyType,
@@ -217,11 +232,43 @@ export class GameManager {
         enemy.healPulse = 0
       } else if (ability.kind === 'PHASE') {
         enemy.phaseTimer = 0
+      } else if (ability.kind === 'REGEN') {
+        enemy.regenIdleSince = 0
+      } else if (ability.kind === 'SUMMON') {
+        enemy.summonCooldown = ability.cooldownMs
+      } else if (ability.kind === 'TELEPORT') {
+        enemy.teleportCooldown = 0
+      } else if (ability.kind === 'OVERLORD') {
+        const sh = ability.shield * this.config.difficultyMultiplier * healthMultiplier
+        enemy.shield = sh
+        enemy.maxShield = sh
+        enemy.summonCooldown = ability.summonCooldownMs
+        enemy.regenIdleSince = 0
       }
     }
 
     this.enemies.push(enemy)
     return enemy
+  }
+
+  spawnMinion(parent, minionDef) {
+    const t = {
+      id: 'MINION',
+      health: minionDef.health,
+      speed: minionDef.speed,
+      reward: minionDef.reward,
+      color: minionDef.color,
+      size: minionDef.size,
+      resistances: { KINETIC: 1.0, PIERCING: 1.0, ENERGY: 1.0, EXPLOSIVE: 1.0 }
+    }
+    return this.spawnEnemy(t, {}, {
+      health: minionDef.health,
+      speed: minionDef.speed,
+      reward: minionDef.reward,
+      spawnX: parent.x,
+      spawnY: parent.y,
+      pathIndex: Math.max(0, parent.pathIndex - 1)
+    })
   }
 
   placeTower(gridX, gridY, towerType) {
@@ -366,7 +413,13 @@ export class GameManager {
       this.waveTimer = 0
       this.currentEvent = null
 
-      if (this.currentRound >= this.config.rounds) {
+      // Wave-clear bonus: cushions the early economy without breaking late-game scaling.
+      const bonus = WAVE_CLEAR_BONUS_BASE + this.currentRound * WAVE_CLEAR_BONUS_PER_ROUND
+      this.money += bonus
+      this.stats.moneyEarned += bonus
+      this.particles.createMoneyEffect(GRID_SIZE * 1.5, GRID_SIZE * 0.8, bonus)
+
+      if (!this.config.endless && this.currentRound >= this.config.rounds) {
         this.victory = true
         sound.victory()
       } else {
@@ -427,6 +480,38 @@ export class GameManager {
         }
       } else if (ability.kind === 'PHASE') {
         if (enemy.phaseTimer > 0) enemy.phaseTimer = Math.max(0, enemy.phaseTimer - deltaTime)
+      } else if (ability.kind === 'REGEN') {
+        enemy.regenIdleSince = (enemy.regenIdleSince || 0) + deltaTime
+        if (enemy.regenIdleSince >= ability.regenDelayMs && enemy.health < enemy.maxHealth) {
+          const heal = ability.regenPerSecond * (deltaTime / 1000)
+          enemy.health = Math.min(enemy.maxHealth, enemy.health + heal)
+          enemy.regenPulse = (enemy.regenPulse || 0) + deltaTime
+        }
+      } else if (ability.kind === 'SUMMON') {
+        enemy.summonCooldown -= deltaTime
+        if (enemy.summonCooldown <= 0) {
+          enemy.summonCooldown = enemy.health < enemy.maxHealth * 0.5
+            ? ability.hurtCooldownMs
+            : ability.cooldownMs
+          this.spawnMinion(enemy, ability.minion)
+          this.particles.createHitEffect(enemy.x, enemy.y)
+        }
+      } else if (ability.kind === 'TELEPORT') {
+        if (enemy.teleportCooldown > 0) enemy.teleportCooldown = Math.max(0, enemy.teleportCooldown - deltaTime)
+      } else if (ability.kind === 'OVERLORD') {
+        // Combined behavior: regen + summon when wounded
+        enemy.regenIdleSince = (enemy.regenIdleSince || 0) + deltaTime
+        if (enemy.regenIdleSince >= ability.regenDelayMs && enemy.health < enemy.maxHealth) {
+          const heal = ability.regenPerSecond * (deltaTime / 1000)
+          enemy.health = Math.min(enemy.maxHealth, enemy.health + heal)
+        }
+        enemy.summonCooldown -= deltaTime
+        if (enemy.summonCooldown <= 0) {
+          enemy.summonCooldown = enemy.health < enemy.maxHealth * 0.5
+            ? ability.hurtSummonCooldownMs
+            : ability.summonCooldownMs
+          this.spawnMinion(enemy, ability.minion)
+        }
       }
     }
 
@@ -734,6 +819,12 @@ export class GameManager {
       }
     }
 
+    // Teleporter: when struck by area damage, jumps forward along the path
+    if (isAreaHit && ability?.kind === 'TELEPORT' && enemy.teleportCooldown <= 0) {
+      this.teleportEnemyForward(enemy, ability.tilesAhead)
+      enemy.teleportCooldown = ability.cooldownMs
+    }
+
     // Shielded: damage hits the shield first
     if (enemy.shield > 0) {
       const absorbed = Math.min(enemy.shield, dmg)
@@ -741,7 +832,46 @@ export class GameManager {
       dmg -= absorbed
     }
 
-    if (dmg > 0) enemy.health -= dmg
+    if (dmg > 0) {
+      enemy.health -= dmg
+      // Reset regen idle timer on any meaningful damage
+      if (ability?.kind === 'REGEN' || ability?.kind === 'OVERLORD') {
+        enemy.regenIdleSince = 0
+      }
+    }
+  }
+
+  teleportEnemyForward(enemy, tilesAhead) {
+    // Walk along the remaining path measuring distance until we've moved `tilesAhead` tiles forward.
+    let remaining = tilesAhead * GRID_SIZE
+    let i = enemy.pathIndex
+    let curX = enemy.x
+    let curY = enemy.y
+    while (i < this.currentPath.length - 1 && remaining > 0) {
+      const next = this.currentPath[i + 1]
+      const tx = next.x * GRID_SIZE + GRID_SIZE / 2
+      const ty = next.y * GRID_SIZE + GRID_SIZE / 2
+      const dx = tx - curX
+      const dy = ty - curY
+      const seg = Math.sqrt(dx * dx + dy * dy)
+      if (seg <= remaining) {
+        curX = tx
+        curY = ty
+        i++
+        remaining -= seg
+      } else {
+        const r = remaining / seg
+        curX += dx * r
+        curY += dy * r
+        remaining = 0
+      }
+    }
+    enemy.x = curX
+    enemy.y = curY
+    enemy.pathIndex = i
+    this.particles.createHitEffect(enemy.x, enemy.y)
+    this.particles.createHitEffect(enemy.x + 4, enemy.y - 2)
+    this.particles.createHitEffect(enemy.x - 4, enemy.y + 2)
   }
 
   destroy() {
@@ -775,7 +905,8 @@ export class GameManager {
       paused: this.paused,
       stats: this.stats,
       modifier: this.modifier,
-      allowedTowers: this.config.allowedTowers
+      allowedTowers: this.config.allowedTowers,
+      endless: !!this.config.endless
     }
   }
 }
