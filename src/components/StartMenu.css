@@ -250,9 +250,20 @@
   min-width: 0;
 }
 
-.mode-checkbox:hover {
+.mode-checkbox:hover:not(.disabled) {
   border-color: var(--line);
   background: var(--bg-3);
+}
+
+.mode-checkbox.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.mode-checkbox.disabled .mode-box {
+  border-color: var(--line);
+  background: var(--bg-2);
 }
 
 .mode-checkbox input {
