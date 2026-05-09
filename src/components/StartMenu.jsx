@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getHighScore } from '../utils/storage'
 import { sound } from '../game/SoundManager'
+import { useT, useLang } from '../i18n/i18n'
 import './StartMenu.css'
 
 const LOGO_URL = '/logo.png'
 
 const DIFFICULTIES = [
-  { id: 'easy',    name: 'Easy',    multiplier: 0.7, hint: 'Relaxed pace · less HP' },
-  { id: 'normal',  name: 'Normal',  multiplier: 1.0, hint: 'The classic experience' },
-  { id: 'hard',    name: 'Hard',    multiplier: 1.5, hint: 'Tougher enemies' },
-  { id: 'extreme', name: 'Extreme', multiplier: 2.0, hint: 'Pure pain' }
+  { id: 'easy',    multiplier: 0.7 },
+  { id: 'normal',  multiplier: 1.0 },
+  { id: 'hard',    multiplier: 1.5 },
+  { id: 'extreme', multiplier: 2.0 }
 ]
 
 const ROUND_PRESETS = [10, 20, 30, 40]
@@ -21,6 +22,8 @@ function clampRounds(value) {
 }
 
 function StartMenu({ onStart }) {
+  const t = useT()
+  const { lang, toggleLang } = useLang()
   const [difficulty, setDifficulty] = useState('normal')
   const [rounds, setRounds] = useState(20)
   const [customRounds, setCustomRounds] = useState('')
@@ -61,18 +64,31 @@ function StartMenu({ onStart }) {
   }
 
   const activeDifficulty = DIFFICULTIES.find(d => d.id === difficulty)
+  const activeDifficultyName = t(`menu.difficulty.${difficulty}`)
+  const activeDifficultyHint = t(`menu.difficulty.${difficulty}.hint`)
 
   return (
     <main className="start-menu" onKeyDown={handleKeyDown}>
-      <button
-        type="button"
-        className="audio-toggle"
-        onClick={() => sound.toggleMute()}
-        aria-label={audio.muted ? 'Unmute audio' : 'Mute audio'}
-        title={audio.muted ? 'Unmute' : 'Mute'}
-      >
-        {audio.muted ? '🔇' : '🔊'}
-      </button>
+      <div className="top-actions">
+        <button
+          type="button"
+          className="lang-toggle"
+          onClick={() => { sound.uiClick(); toggleLang() }}
+          aria-label={t('menu.toggleLanguage', 'Switch language')}
+          title={t('menu.toggleLanguage', 'Switch language')}
+        >
+          {lang.toUpperCase()}
+        </button>
+        <button
+          type="button"
+          className="audio-toggle"
+          onClick={() => sound.toggleMute()}
+          aria-label={audio.muted ? t('menu.audioOff') : t('menu.audioOn')}
+          title={audio.muted ? t('menu.audioOff') : t('menu.audioOn')}
+        >
+          {audio.muted ? '🔇' : '🔊'}
+        </button>
+      </div>
 
       <div className="title-block">
         <img
@@ -83,18 +99,16 @@ function StartMenu({ onStart }) {
           height="128"
           aria-hidden="true"
         />
-        <div className="title-pre">— retro tower defense —</div>
+        <div className="title-pre">{t('menu.preTitle')}</div>
         <h1 className="title">PIXEL DEFENSE</h1>
-        <p className="subtitle">
-          Build, upgrade, and survive randomized waves of pixel invaders.
-        </p>
+        <p className="subtitle">{t('menu.subtitle')}</p>
       </div>
 
       <div className="config-grid">
         <fieldset className="config-section">
-          <legend>Difficulty</legend>
-          <div className="button-group" role="radiogroup" aria-label="Difficulty">
-            {DIFFICULTIES.map(({ id, name }) => (
+          <legend>{t('menu.difficulty')}</legend>
+          <div className="button-group" role="radiogroup" aria-label={t('menu.difficulty')}>
+            {DIFFICULTIES.map(({ id }) => (
               <button
                 key={id}
                 type="button"
@@ -103,16 +117,16 @@ function StartMenu({ onStart }) {
                 className={`menu-button ${difficulty === id ? 'active' : ''}`}
                 onClick={() => pickDifficulty(id)}
               >
-                {name}
+                {t(`menu.difficulty.${id}`)}
               </button>
             ))}
           </div>
-          <div className="hint">{activeDifficulty.hint}</div>
+          <div className="hint">{activeDifficultyHint}</div>
         </fieldset>
 
         <fieldset className="config-section">
-          <legend>Rounds</legend>
-          <div className="button-group" role="radiogroup" aria-label="Number of rounds">
+          <legend>{t('menu.rounds')}</legend>
+          <div className="button-group" role="radiogroup" aria-label={t('menu.rounds')}>
             {ROUND_PRESETS.map(n => (
               <button
                 key={n}
@@ -127,23 +141,23 @@ function StartMenu({ onStart }) {
             ))}
           </div>
           <label className="custom-input">
-            <span className="visually-hidden">Custom rounds</span>
+            <span className="visually-hidden">{t('menu.customRoundsLabel')}</span>
             <input
               type="number"
               inputMode="numeric"
-              placeholder="Custom (1–999)"
+              placeholder={t('menu.customRounds')}
               value={customRounds}
               onChange={(e) => setCustomRounds(e.target.value.replace(/\D/g, ''))}
               min="1"
               max="999"
-              aria-label="Custom rounds"
+              aria-label={t('menu.customRoundsLabel')}
             />
           </label>
         </fieldset>
       </div>
 
       <fieldset className="run-modes">
-        <legend>Run modes</legend>
+        <legend>{t('menu.runModes')}</legend>
         <label className={`mode-checkbox ${draftEnabled ? 'on' : ''}`}>
           <input
             type="checkbox"
@@ -152,8 +166,8 @@ function StartMenu({ onStart }) {
           />
           <span className="mode-box" aria-hidden="true">{draftEnabled ? '✓' : ''}</span>
           <span className="mode-label">
-            <span className="mode-name">Tower Draft</span>
-            <span className="mode-hint">Pick 5 of 8 towers for the run</span>
+            <span className="mode-name">{t('menu.draft.name')}</span>
+            <span className="mode-hint">{t('menu.draft.hint')}</span>
           </span>
         </label>
         <label className={`mode-checkbox ${modifierEnabled ? 'on' : ''}`}>
@@ -164,21 +178,24 @@ function StartMenu({ onStart }) {
           />
           <span className="mode-box" aria-hidden="true">{modifierEnabled ? '✓' : ''}</span>
           <span className="mode-label">
-            <span className="mode-name">Run Modifier</span>
-            <span className="mode-hint">Pick 1 of 3 buffs / tradeoffs</span>
+            <span className="mode-name">{t('menu.modifier.name')}</span>
+            <span className="mode-hint">{t('menu.modifier.hint')}</span>
           </span>
         </label>
       </fieldset>
 
       <div className="summary-row" aria-live="polite">
         <div>
-          <span className="summary-label">Best</span>
+          <span className="summary-label">{t('menu.best')}</span>
           <span className="summary-value">{highScore.toLocaleString()}</span>
         </div>
         <div>
-          <span className="summary-label">Mode</span>
+          <span className="summary-label">{t('menu.mode')}</span>
           <span className="summary-value">
-            {activeDifficulty.name} · {effectiveRounds} rounds
+            {t('menu.modeFormat', null, {
+              difficulty: activeDifficultyName,
+              rounds: effectiveRounds
+            })}
           </span>
         </div>
       </div>
@@ -189,11 +206,11 @@ function StartMenu({ onStart }) {
         onClick={handleStart}
         autoFocus
       >
-        Start Game
+        {t('menu.startGame')}
       </button>
 
       <footer className="credits">
-        <span>Made by</span>
+        <span>{t('menu.madeBy')}</span>
         <a
           href="https://github.com/MiguelJiRo"
           target="_blank"
@@ -207,7 +224,7 @@ function StartMenu({ onStart }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Source
+          {t('menu.source')}
         </a>
       </footer>
     </main>

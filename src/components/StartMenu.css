@@ -28,10 +28,17 @@
 .start-menu::before { top: -7px; left: -7px; }
 .start-menu::after  { bottom: -7px; right: -7px; }
 
-.audio-toggle {
+.top-actions {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 1;
+}
+
+.audio-toggle,
+.lang-toggle {
   width: 30px;
   height: 30px;
   display: inline-flex;
@@ -43,10 +50,17 @@
   font-size: 13px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  z-index: 1;
 }
 
-.audio-toggle:hover {
+.lang-toggle {
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+  width: 38px;
+}
+
+.audio-toggle:hover,
+.lang-toggle:hover {
   background: var(--bg-3);
   border-color: var(--accent);
 }

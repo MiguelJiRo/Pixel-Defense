@@ -7,16 +7,22 @@ import {
 } from '../game/constants'
 import DamageIcon from './DamageIcon'
 import Legend from './Legend'
+import { useT, useLang, translate } from '../i18n/i18n'
 import './Game.css'
 
 const TOWER_HOTKEYS = ['1', '2', '3', '4', '5', '6', '7', '8']
-const ALL_towerTypeList = Object.values(TOWER_TYPES)
+const ALL_TOWER_TYPES = Object.values(TOWER_TYPES)
 const UI_TICK_MS = 100
 
 function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
+  const t = useT()
+  const { lang } = useLang()
+  const langRef = useRef(lang)
+  useEffect(() => { langRef.current = lang }, [lang])
+
   const towerTypeList = config.allowedTowers && config.allowedTowers.length > 0
-    ? ALL_towerTypeList.filter(t => config.allowedTowers.includes(t.id))
-    : ALL_towerTypeList
+    ? ALL_TOWER_TYPES.filter(tw => config.allowedTowers.includes(tw.id))
+    : ALL_TOWER_TYPES
 
   const canvasRef = useRef(null)
   const wrapRef = useRef(null)
@@ -512,16 +518,17 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
     }
 
     if (state.paused && !state.gameOver && !state.victory) {
+      const curLang = langRef.current
       ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
       ctx.fillStyle = '#fff'
       ctx.font = 'bold 32px "Press Start 2P", monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('PAUSED', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 10)
+      ctx.fillText(translate(curLang, 'game.paused'), CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 10)
       ctx.fillStyle = '#8a8aa3'
       ctx.font = '14px "Press Start 2P", monospace'
-      ctx.fillText('press P or SPACE to resume', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30)
+      ctx.fillText(translate(curLang, 'game.pausedHint'), CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30)
     }
   }, [])
 
@@ -610,33 +617,33 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
     <div className="game-container" ref={wrapRef}>
       <header className="game-header" role="banner">
         <div className="header-stats">
-          <div className="stat" aria-label={`Health ${uiState.health} of ${uiState.maxHealth || INITIAL_HEALTH}`}>
-            <span className="stat-label">Health</span>
+          <div className="stat" aria-label={`${t('game.health')} ${uiState.health}/${uiState.maxHealth || INITIAL_HEALTH}`}>
+            <span className="stat-label">{t('game.health')}</span>
             <div className="stat-bar">
               <div className="stat-bar-fill health" style={{ width: `${healthPct}%` }} />
               <span className="stat-bar-text">{uiState.health}</span>
             </div>
           </div>
           <div className="stat">
-            <span className="stat-label">Money</span>
+            <span className="stat-label">{t('game.money')}</span>
             <span className="stat-value money">${uiState.money}</span>
           </div>
           <div className="stat">
-            <span className="stat-label">Round</span>
+            <span className="stat-label">{t('game.round')}</span>
             <span className="stat-value">{uiState.round}/{uiState.totalRounds}</span>
           </div>
           <div className="stat">
-            <span className="stat-label">Score</span>
+            <span className="stat-label">{t('game.score')}</span>
             <span className="stat-value">{uiState.score}</span>
           </div>
           {uiState.modifier && (
             <div
               className="modifier-pill"
               style={{ borderColor: uiState.modifier.color, color: uiState.modifier.color }}
-              title={uiState.modifier.description}
+              title={t(`modifier.${uiState.modifier.id}.desc`, uiState.modifier.description)}
             >
               <span className="modifier-pill-sign">{uiState.modifier.sign}</span>
-              <span className="modifier-pill-name">{uiState.modifier.name}</span>
+              <span className="modifier-pill-name">{t(`modifier.${uiState.modifier.id}.name`, uiState.modifier.name)}</span>
             </div>
           )}
         </div>
@@ -646,8 +653,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             type="button"
             className="icon-button"
             onClick={openLegend}
-            aria-label="Open legend"
-            title="Legend (L)"
+            aria-label={t('game.openLegend')}
+            title={t('game.legendTitle')}
           >
             ?
           </button>
@@ -655,8 +662,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             type="button"
             className="icon-button"
             onClick={handleMuteToggle}
-            aria-label={audio.muted ? 'Unmute' : 'Mute'}
-            title={audio.muted ? 'Unmute (M)' : 'Mute (M)'}
+            aria-label={audio.muted ? t('menu.audioOff') : t('menu.audioOn')}
+            title={audio.muted ? t('game.unmuteTitle') : t('game.muteTitle')}
           >
             {audio.muted ? '🔇' : '🔊'}
           </button>
@@ -664,8 +671,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             type="button"
             className="icon-button"
             onClick={handlePauseToggle}
-            aria-label={uiState.paused ? 'Resume game' : 'Pause game'}
-            title="Pause / Resume (P)"
+            aria-label={uiState.paused ? t('game.resume') : t('game.pause')}
+            title={t('game.pauseTitle')}
           >
             {uiState.paused ? '▶' : 'II'}
           </button>
@@ -673,8 +680,8 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             type="button"
             className="icon-button"
             onClick={onReturnToMenu}
-            aria-label="Return to menu"
-            title="Return to menu"
+            aria-label={t('game.returnToMenu')}
+            title={t('game.returnToMenu')}
           >
             ✕
           </button>
@@ -699,18 +706,18 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           {!uiState.waveActive && !uiState.victory && !uiState.gameOver ? (
             <div className="wave-status prep">
               <div className="wave-status-row">
-                <h3>{uiState.round === 0 ? 'Prepare!' : 'Prep Phase'}</h3>
+                <h3>{uiState.round === 0 ? t('game.prepare') : t('game.prepPhase')}</h3>
                 <button
                   type="button"
                   className="skip-button"
                   onClick={handleSkipPrep}
-                  title="Skip wait (Space)"
+                  title={t('game.skipTitle')}
                 >
-                  Skip ▶▶
+                  {t('game.skipBtn')}
                 </button>
               </div>
               <div className="timer">
-                Next wave in <strong>{prepRemaining}s</strong>
+                {t('game.nextWaveIn')} <strong>{prepRemaining}s</strong>
               </div>
               <div className="prep-progress">
                 <div
@@ -721,25 +728,25 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
             </div>
           ) : uiState.waveActive ? (
             <div className="wave-status active">
-              <h3>Wave {uiState.round}</h3>
+              <h3>{t('game.wave', null, { n: uiState.round })}</h3>
               <div className="enemy-count">
-                Enemies left: <strong>{uiState.enemyCount}</strong>
+                {t('game.enemiesLeft')} <strong>{uiState.enemyCount}</strong>
               </div>
               {uiState.currentEvent && (
                 <div className="event-banner" style={{ borderColor: uiState.currentEvent.color }}>
                   <div className="event-title" style={{ color: uiState.currentEvent.color }}>
-                    {uiState.currentEvent.name}
+                    {t(`event.${uiState.currentEvent.id}.name`, uiState.currentEvent.name)}
                   </div>
                   <div className="event-description">
-                    {uiState.currentEvent.description}
+                    {t(`event.${uiState.currentEvent.id}.desc`, uiState.currentEvent.description)}
                   </div>
                 </div>
               )}
             </div>
           ) : null}
 
-          <section className="tower-shop" aria-label="Tower shop">
-            <h3>Build</h3>
+          <section className="tower-shop" aria-label={t('game.build')}>
+            <h3>{t('game.build')}</h3>
             <ul className="tower-list">
               {towerTypeList.map((tower, idx) => {
                 const costMul = uiState.modifier?.apply?.towerCostMul ?? 1
@@ -747,7 +754,9 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                 const affordable = uiState.money >= effCost
                 const active = selectedTowerType === tower.id
                 const dt = DAMAGE_TYPE_META[tower.damageType]
-                const shortName = tower.name.replace(/\s*Tower$/i, '')
+                const localizedName = t(`tower.${tower.id}.name`, tower.name)
+                const localizedShort = t(`tower.${tower.id}.short`, tower.name.replace(/\s*Tower$/i, ''))
+                const dtLabel = dt ? t(`damage.${tower.damageType}.label`, dt.label) : ''
                 return (
                   <li key={tower.id}>
                     <button
@@ -756,7 +765,7 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                       onClick={() => setSelectedTowerType(active ? null : tower.id)}
                       disabled={!affordable}
                       aria-pressed={active}
-                      title={`${tower.name} ($${effCost}) — ${dt?.label} damage — hotkey ${idx + 1}`}
+                      title={`${localizedName} ($${effCost}) — ${dtLabel}`}
                     >
                       <span className="tower-row-top">
                         <span className="tower-hotkey" aria-hidden="true">{idx + 1}</span>
@@ -765,13 +774,13 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
                           <span
                             className="dmg-badge"
                             style={{ color: dt.color, borderColor: dt.color }}
-                            title={`${dt.label} damage`}
+                            title={dtLabel}
                           >
-                            <DamageIcon type={tower.damageType} size={10} title={dt.label} />
+                            <DamageIcon type={tower.damageType} size={10} title={dtLabel} />
                           </span>
                         )}
                       </span>
-                      <span className="tower-name">{shortName}</span>
+                      <span className="tower-name">{localizedShort}</span>
                       <span className="tower-cost">${effCost}</span>
                     </button>
                   </li>
@@ -782,35 +791,39 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
 
           {selectedTower && (() => {
             const dt = DAMAGE_TYPE_META[selectedTower.type.damageType]
+            const dtLabel = dt ? t(`damage.${selectedTower.type.damageType}.label`, dt.label) : ''
+            const costMul = uiState.modifier?.apply?.towerCostMul ?? 1
+            const upgradeCost = Math.ceil(selectedTower.type.upgradeCost * costMul)
+            const sellRefund = Math.floor((selectedTower.effectiveCost ?? selectedTower.type.cost) * 0.7)
             return (
-            <section className="tower-detail" aria-label="Selected tower details">
-              <h3>{selectedTower.type.name}</h3>
+            <section className="tower-detail" aria-label="Tower details">
+              <h3>{t(`tower.${selectedTower.type.id}.name`, selectedTower.type.name)}</h3>
               <div className="detail-content">
-                <div className="detail-row"><span>Level</span><span>{selectedTower.level}/3</span></div>
+                <div className="detail-row"><span>{t('game.towerLevel')}</span><span>{selectedTower.level}/3</span></div>
                 <div className="detail-row">
-                  <span>Damage</span>
+                  <span>{t('game.towerDamage')}</span>
                   <span className="detail-damage">
-                    {selectedTower.damage}
+                    {Math.round(selectedTower.damage)}
                     {dt && (
-                      <span className="dmg-badge inline" style={{ color: dt.color, borderColor: dt.color }} title={dt.label}>
-                        <DamageIcon type={selectedTower.type.damageType} size={10} title={dt.label} />
+                      <span className="dmg-badge inline" style={{ color: dt.color, borderColor: dt.color }} title={dtLabel}>
+                        <DamageIcon type={selectedTower.type.damageType} size={10} title={dtLabel} />
                       </span>
                     )}
                   </span>
                 </div>
-                <div className="detail-row"><span>Range</span><span>{selectedTower.range}</span></div>
+                <div className="detail-row"><span>{t('game.towerRange')}</span><span>{selectedTower.range.toFixed(1)}</span></div>
                 <div className="actions">
                   {selectedTower.level < 3 && (
                     <button
                       type="button"
                       onClick={handleUpgradeTower}
-                      disabled={uiState.money < selectedTower.type.upgradeCost}
+                      disabled={uiState.money < upgradeCost}
                     >
-                      Upgrade · ${selectedTower.type.upgradeCost}
+                      {t('game.upgradeFmt', null, { cost: upgradeCost })}
                     </button>
                   )}
                   <button type="button" onClick={handleSellTower} className="sell-button">
-                    Sell · ${Math.floor(selectedTower.type.cost * 0.7)}
+                    {t('game.sellFmt', null, { cost: sellRefund })}
                   </button>
                 </div>
               </div>
@@ -819,12 +832,12 @@ function Game({ config, onGameOver, onReturnToMenu, onVictory }) {
           })()}
 
           <div className="hotkeys-hint" aria-hidden="true">
-            <span><kbd>1</kbd>–<kbd>8</kbd> tower</span>
-            <span><kbd>Space</kbd> skip / pause</span>
-            <span><kbd>P</kbd> pause</span>
-            <span><kbd>M</kbd> mute</span>
-            <span><kbd>L</kbd> legend</span>
-            <span><kbd>Esc</kbd> deselect</span>
+            <span><kbd>1</kbd>–<kbd>8</kbd> {t('hotkey.tower')}</span>
+            <span><kbd>Space</kbd> {t('hotkey.skipPause')}</span>
+            <span><kbd>P</kbd> {t('hotkey.pause')}</span>
+            <span><kbd>M</kbd> {t('hotkey.mute')}</span>
+            <span><kbd>L</kbd> {t('hotkey.legend')}</span>
+            <span><kbd>Esc</kbd> {t('hotkey.deselect')}</span>
           </div>
         </aside>
       </div>

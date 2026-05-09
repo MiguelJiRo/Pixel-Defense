@@ -3,31 +3,12 @@ import { TOWER_TYPES, ENEMY_TYPES, DAMAGE_TYPE_META } from '../game/constants'
 import { EVENT_TYPES } from '../game/events'
 import { RUN_MODIFIERS } from '../game/modifiers'
 import DamageIcon from './DamageIcon'
+import { useT } from '../i18n/i18n'
 import './Legend.css'
 
-const ENEMY_DESCRIPTIONS = {
-  BASIC: 'Neutral target dummy. No resistances.',
-  FAST: 'Small and dodgy. Resists direct fire, melts to area damage.',
-  TANK: 'Heavy plating: piercing & energy punch through, kinetic & explosive bounce.',
-  BOSS: 'Slow, massive HP. Vulnerable to piercing, resists energy.',
-  SHIELDED: 'Energy shield absorbs damage first. Pierce or zap to break it fast.',
-  HEALER: 'Heals every nearby enemy in a radius. Kill it on sight.',
-  SPLITTER: 'Splits into two fast, weaker minis on death. Don\'t kill it near the end.',
-  PHANTOM: 'Phases through single-target shots half the time. Use area damage.'
-}
-
-const TOWER_DESCRIPTIONS = {
-  BASIC: 'All-rounder. Cheap, balanced, no specialization.',
-  SNIPER: 'Long range, slow fire rate, big damage. Best vs Tanks and Bosses.',
-  RAPID: 'Tiny damage at very high rate of fire. Excellent vs Fast enemies.',
-  SPLASH: 'Area-of-effect blast. Hits clusters and bypasses Phantom evasion.',
-  FROST: 'Slows hit enemies for a few seconds. Counters Speed Boost waves and Phantoms.',
-  BURN: 'Applies a damage-over-time tick. The DoT bypasses shields once it’s burning.',
-  CHAIN: 'Each shot bounces between up to 3 nearby enemies with damage falloff. Great vs Splitters and swarms.',
-  BEAM: 'Continuous laser locked on target — never misses. Ramps up damage. Counters Phantoms.'
-}
-
 function Legend({ onClose }) {
+  const t = useT()
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -39,17 +20,17 @@ function Legend({ onClose }) {
       className="legend-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="Legend"
+      aria-label={t('legend.title')}
       onClick={onClose}
     >
       <div className="legend-card" onClick={(e) => e.stopPropagation()}>
         <header className="legend-header">
-          <h2>Legend</h2>
+          <h2>{t('legend.title')}</h2>
           <button
             type="button"
             className="legend-close"
             onClick={onClose}
-            aria-label="Close legend"
+            aria-label={t('legend.close')}
           >
             ✕
           </button>
@@ -57,7 +38,7 @@ function Legend({ onClose }) {
 
         <div className="legend-body">
           <section>
-            <h3>Damage Types</h3>
+            <h3>{t('legend.damageTypes')}</h3>
             <ul className="legend-grid">
               {Object.entries(DAMAGE_TYPE_META).map(([key, meta]) => (
                 <li key={key}>
@@ -65,13 +46,8 @@ function Legend({ onClose }) {
                     <DamageIcon type={key} size={14} />
                   </span>
                   <div>
-                    <strong style={{ color: meta.color }}>{meta.label}</strong>
-                    <span className="legend-text">
-                      {key === 'KINETIC' && 'Bullet damage. Neutral, no specialization.'}
-                      {key === 'PIERCING' && 'Punches through armor. Excellent vs Tanks and Bosses.'}
-                      {key === 'ENERGY' && 'Bypasses physical defenses. Melts Fast enemies.'}
-                      {key === 'EXPLOSIVE' && 'Area damage. Devastates clusters but bounces off armor.'}
-                    </span>
+                    <strong style={{ color: meta.color }}>{t(`damage.${key}.label`, meta.label)}</strong>
+                    <span className="legend-text">{t(`damage.${key}.desc`)}</span>
                   </div>
                 </li>
               ))}
@@ -79,21 +55,21 @@ function Legend({ onClose }) {
           </section>
 
           <section>
-            <h3>Towers</h3>
+            <h3>{t('legend.towers')}</h3>
             <ul className="legend-grid">
-              {Object.values(TOWER_TYPES).map((t) => {
-                const dt = DAMAGE_TYPE_META[t.damageType]
+              {Object.values(TOWER_TYPES).map((tw) => {
+                const dt = DAMAGE_TYPE_META[tw.damageType]
                 return (
-                  <li key={t.id}>
-                    <span className="legend-tower" style={{ background: t.color }} />
+                  <li key={tw.id}>
+                    <span className="legend-tower" style={{ background: tw.color }} />
                     <div>
-                      <strong>{t.name}</strong>{' '}
+                      <strong>{t(`tower.${tw.id}.name`, tw.name)}</strong>{' '}
                       <span className="legend-mini-badge" style={{ color: dt.color, borderColor: dt.color }}>
-                        <DamageIcon type={t.damageType} size={10} />
+                        <DamageIcon type={tw.damageType} size={10} />
                       </span>
-                      <span className="legend-text">{TOWER_DESCRIPTIONS[t.id]}</span>
+                      <span className="legend-text">{t(`tower.${tw.id}.desc`)}</span>
                       <span className="legend-stats">
-                        ${t.cost} · DMG {t.damage} · RNG {t.range} · {(1000 / t.fireRate).toFixed(1)}/s
+                        ${tw.cost} · {t('game.towerDamage')} {tw.damage} · {t('game.towerRange')} {tw.range} · {(1000 / tw.fireRate).toFixed(1)}/s
                       </span>
                     </div>
                   </li>
@@ -103,7 +79,7 @@ function Legend({ onClose }) {
           </section>
 
           <section>
-            <h3>Enemies</h3>
+            <h3>{t('legend.enemies')}</h3>
             <ul className="legend-grid enemies">
               {Object.values(ENEMY_TYPES).map((e) => (
                 <li key={e.id}>
@@ -118,10 +94,10 @@ function Legend({ onClose }) {
                     {e.ability?.kind === 'PHASE' && <span className="legend-aura phase" />}
                   </span>
                   <div>
-                    <strong>{e.id.charAt(0) + e.id.slice(1).toLowerCase()}</strong>
-                    <span className="legend-text">{ENEMY_DESCRIPTIONS[e.id]}</span>
+                    <strong>{t(`enemy.${e.id}.name`, e.id)}</strong>
+                    <span className="legend-text">{t(`enemy.${e.id}.desc`)}</span>
                     <span className="legend-stats">
-                      HP {e.health} · Speed {e.speed} · Reward ${e.reward}
+                      {t('enemy.statsFmt', null, { hp: e.health, speed: e.speed, reward: e.reward })}
                     </span>
                   </div>
                 </li>
@@ -130,10 +106,8 @@ function Legend({ onClose }) {
           </section>
 
           <section>
-            <h3>Run Modifiers</h3>
-            <p className="legend-section-hint">
-              Optional cards picked at run start (one per run). Each one bends the rules of the whole game.
-            </p>
+            <h3>{t('legend.modifiers')}</h3>
+            <p className="legend-section-hint">{t('legend.modifiersHint')}</p>
             <ul className="legend-grid">
               {Object.values(RUN_MODIFIERS).map((mod) => (
                 <li key={mod.id}>
@@ -141,8 +115,8 @@ function Legend({ onClose }) {
                     {mod.sign}
                   </span>
                   <div>
-                    <strong style={{ color: mod.color }}>{mod.name}</strong>
-                    <span className="legend-text">{mod.description}</span>
+                    <strong style={{ color: mod.color }}>{t(`modifier.${mod.id}.name`, mod.name)}</strong>
+                    <span className="legend-text">{t(`modifier.${mod.id}.desc`, mod.description)}</span>
                   </div>
                 </li>
               ))}
@@ -150,14 +124,14 @@ function Legend({ onClose }) {
           </section>
 
           <section>
-            <h3>Wave Events</h3>
+            <h3>{t('legend.events')}</h3>
             <ul className="legend-grid">
               {Object.values(EVENT_TYPES).map((ev) => (
                 <li key={ev.id}>
                   <span className="legend-event-dot" style={{ background: ev.color }} />
                   <div>
-                    <strong style={{ color: ev.color }}>{ev.name}</strong>
-                    <span className="legend-text">{ev.description}</span>
+                    <strong style={{ color: ev.color }}>{t(`event.${ev.id}.name`, ev.name)}</strong>
+                    <span className="legend-text">{t(`event.${ev.id}.desc`, ev.description)}</span>
                   </div>
                 </li>
               ))}
@@ -165,15 +139,21 @@ function Legend({ onClose }) {
           </section>
 
           <section className="legend-keys">
-            <h3>Indicators on the field</h3>
+            <h3>{t('legend.indicators')}</h3>
             <ul>
-              <li><span className="legend-arrow up">▲</span> Enemy is <strong>vulnerable</strong> to the selected tower's damage type.</li>
-              <li><span className="legend-arrow down">▼</span> Enemy <strong>resists</strong> the selected tower's damage type.</li>
-              <li><span className="legend-aura inline shield" /> Cyan ring → active shield (extra HP layer).</li>
-              <li><span className="legend-aura inline heal">+</span> Pulsing green halo → healer's heal radius.</li>
-              <li><span className="legend-aura inline phase" /> Translucent body → phantom; can phase through single-target shots.</li>
-              <li><span className="legend-status-pill slow">slow</span> Cyan tint on enemy → slowed by Frost.</li>
-              <li><span className="legend-status-pill burn">burn</span> Flames above enemy → burning DoT (bypasses shields).</li>
+              <li>
+                <span className="legend-arrow up">▲</span>
+                {t('legend.indicator.vulnerable', null, { strong: t('legend.vulnerable') })}
+              </li>
+              <li>
+                <span className="legend-arrow down">▼</span>
+                {t('legend.indicator.resists', null, { strong: t('legend.resists') })}
+              </li>
+              <li><span className="legend-aura inline shield" /> {t('legend.indicator.shield')}</li>
+              <li><span className="legend-aura inline heal">+</span> {t('legend.indicator.heal')}</li>
+              <li><span className="legend-aura inline phase" /> {t('legend.indicator.phase')}</li>
+              <li><span className="legend-status-pill slow">{t('legend.statusSlow')}</span> {t('legend.indicator.slow')}</li>
+              <li><span className="legend-status-pill burn">{t('legend.statusBurn')}</span> {t('legend.indicator.burn')}</li>
             </ul>
           </section>
         </div>
