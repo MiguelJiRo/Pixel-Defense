@@ -196,7 +196,15 @@ export class GameManager {
     const modSpeedMul = this.modifierApply.enemySpeedMul ?? 1
     const modRewardMul = this.modifierApply.rewardMul ?? 1
 
-    // Endless mode: exponential scaling beyond round 20
+    // Per-round linear scaling: keeps later rounds challenging without making
+    // early rounds harder. Round 1 = 1.0×, Round 10 = 1.54×, Round 20 = 2.14×.
+    const roundIdx = Math.max(0, this.currentRound - 1)
+    const roundHealthMul = 1 + roundIdx * 0.06
+    const roundRewardMul = 1 + roundIdx * 0.05
+    // Subtle speed bump every 5 rounds, capped at +25% (round 25+).
+    const roundSpeedMul = 1 + Math.min(0.25, Math.floor(roundIdx / 5) * 0.04)
+
+    // Endless mode: extra exponential pressure beyond round 20.
     let endlessHealthMul = 1
     let endlessRewardMul = 1
     if (this.config.endless && this.currentRound > 20) {
@@ -205,9 +213,9 @@ export class GameManager {
       endlessRewardMul = Math.pow(1.04, extra)
     }
 
-    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier * modHealthMul * endlessHealthMul
-    const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier * modSpeedMul
-    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier * modRewardMul * endlessRewardMul)
+    const baseHealth = (overrides.health ?? enemyType.health) * this.config.difficultyMultiplier * healthMultiplier * modHealthMul * roundHealthMul * endlessHealthMul
+    const baseSpeed = (overrides.speed ?? enemyType.speed) * speedMultiplier * modSpeedMul * roundSpeedMul
+    const baseReward = Math.floor((overrides.reward ?? enemyType.reward) * rewardMultiplier * modRewardMul * roundRewardMul * endlessRewardMul)
 
     const enemy = {
       type: enemyType,
